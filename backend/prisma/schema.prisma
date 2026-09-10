@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  monitors Monitor[]
+}
+
+model Monitor {
+  id              Int      @id @default(autoincrement())
+  name            String
+  url             String
+  method          String   @default("GET")
+  intervalSeconds Int      @default(300)
+  timeoutSeconds  Int      @default(5)
+  expectedStatus  Int      @default(200)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  userId     Int
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checks     MonitorCheck[]
+  incidents  Incident[]
+  alertRules AlertRule[]
+
+  @@index([userId])
+}
+
+model MonitorCheck {
+  id           Int      @id @default(autoincrement())
+  status       String
+  statusCode   Int?
+  latencyMs    Int?
+  errorMessage String?
+  checkedAt    DateTime @default(now())
+
+  monitorId Int
+  monitor   Monitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+
+  @@index([monitorId, checkedAt])
+}
+
+model Incident {
+  id         Int       @id @default(autoincrement())
+  status     String    @default("ONGOING")
+  reason     String?
+  startedAt  DateTime  @default(now())
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  monitorId Int
+  monitor   Monitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+
+  @@index([monitorId, status])
+}
+
+model AlertRule {
+  id          Int      @id @default(autoincrement())
+  type        String
+  destination String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  monitorId Int
+  monitor   Monitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+
+  @@index([monitorId])
+}

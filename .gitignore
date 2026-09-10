@@ -1,0 +1,7 @@
+﻿backend/node_modules/
+backend/dist/
+backend/.env
+backend/.agents/
+backend/.claude/
+backend/.cursor/
+backend/.devin/
