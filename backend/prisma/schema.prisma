@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -22,7 +23,7 @@ model Monitor {
   name            String
   url             String
   method          String   @default("GET")
-  intervalSeconds Int      @default(300)
+  intervalSeconds Int      @default(60)
   timeoutSeconds  Int      @default(5)
   expectedStatus  Int      @default(200)
   isActive        Boolean  @default(true)
