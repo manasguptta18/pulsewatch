@@ -56,6 +56,7 @@ model MonitorCheck {
 model Incident {
   id         Int       @id @default(autoincrement())
   status     String    @default("ONGOING")
+  type       String    @default("AVAILABILITY")
   reason     String?
   startedAt  DateTime  @default(now())
   resolvedAt DateTime?

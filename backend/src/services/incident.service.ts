@@ -26,6 +26,7 @@ export async function processIncident(monitorId: number){
                 await prisma.incident.create({
                     data:{
                         monitorId,
+                        type: "AVAILABILITY",
                         reason: "3 consecutive monitor checks failed",
                     },
                 });

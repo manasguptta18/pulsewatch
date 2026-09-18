@@ -22,6 +22,7 @@ router.post("/:id/check", async (req, res)=>{
 
         res.status(201).json(check);
     }catch(error){
+        console.error("CHECK MONITOR ERROR:", error);
         res.status(500).json({
             message: "failed to check monitor",
         });

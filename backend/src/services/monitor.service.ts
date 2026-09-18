@@ -1,5 +1,6 @@
 import {prisma} from '../lib/prisma.js';
 import {processIncident} from "./incident.service.js";
+import { detectPerformanceDegradation } from "./performance.service.js";
 
 export async function createMonitor(data:{
     userId: number;
@@ -77,6 +78,7 @@ export async function checkMonitor(monitorId: number){
     });
 
     await processIncident(monitor.id);
+    await detectPerformanceDegradation(monitor.id);
 
     return check;
 }

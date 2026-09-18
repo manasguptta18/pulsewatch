@@ -119,6 +119,7 @@ export type MonitorCheckScalarFieldEnum = (typeof MonitorCheckScalarFieldEnum)[k
 export const IncidentScalarFieldEnum = {
   id: 'id',
   status: 'status',
+  type: 'type',
   reason: 'reason',
   startedAt: 'startedAt',
   resolvedAt: 'resolvedAt',

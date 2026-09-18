@@ -20,7 +20,19 @@ app.use("/api/v1/monitors",monitorRoutes);
 app.use("/api/v1/users", userRoutes);
 
 
+
 const port = 3000;
+
+app.get("/api/v1/test/slow", async (req, res) => {
+    const delay = Number(req.query.delay ?? 100);
+
+    await new Promise((resolve) => setTimeout(resolve, delay));
+
+    res.json({
+        message: `Response delayed by ${delay}ms`,
+    });
+});
+
 app.listen(port, ()=>{
     console.log(`server running on port ${port}`);
 });
