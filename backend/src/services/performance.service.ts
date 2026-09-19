@@ -41,11 +41,7 @@ export async function detectPerformanceDegradation(
     const averageLatency =
         totalLatency / previousChecks.length;
 
-    if (
-        averageLatency > 0 &&
-        currentCheck.latencyMs >= averageLatency * 2
-    ) {
-        const ongoingIncident = await prisma.incident.findFirst({
+     const ongoingIncident = await prisma.incident.findFirst({
             where: {
                 monitorId,
                 status: "ONGOING",
@@ -53,6 +49,11 @@ export async function detectPerformanceDegradation(
             },
         });
 
+
+    if (
+        averageLatency > 0 &&
+        currentCheck.latencyMs >= averageLatency * 2
+    ) {
         if (!ongoingIncident) {
             await prisma.incident.create({
                 data: {
@@ -63,10 +64,24 @@ export async function detectPerformanceDegradation(
                     )}ms.`,
                 },
             });
-
+                
             console.log(
                 `Performance degradation detected for monitor: ${monitorId}`
             );
         }
+    }
+
+    if(ongoingIncident && currentCheck.latencyMs < averageLatency*2){
+        await prisma.incident.update({
+            where:{
+                id: ongoingIncident.id,
+            },
+            data:{
+                status: "RESOLVED",
+                resolvedAt: new Date(),
+            },
+        });
+
+        console.log(`Performance incident resolved for monitor: ${monitorId}`);
     }
 }
