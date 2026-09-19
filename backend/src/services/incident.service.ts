@@ -1,4 +1,5 @@
 import {prisma} from "../lib/prisma.js";
+import { triggerIncidentAlerts } from "./alert.service.js";
 
 export async function processIncident(monitorId: number){
     const recentChecks = await prisma.monitorCheck.findMany({
@@ -23,13 +24,15 @@ export async function processIncident(monitorId: number){
             });
 
             if(!ongoingIncident){
-                await prisma.incident.create({
+                const incident  = await prisma.incident.create({
                     data:{
                         monitorId,
                         type: "AVAILABILITY",
                         reason: "3 consecutive monitor checks failed",
                     },
                 });
+                
+                await triggerIncidentAlerts(incident.id);
 
                 console.log(`Incident created for monitor: ${monitorId}`);
             }

@@ -1,4 +1,5 @@
 import { prisma } from "../lib/prisma.js";
+import { triggerIncidentAlerts } from "./alert.service.js";
 
 export async function detectPerformanceDegradation(
     monitorId: number
@@ -55,7 +56,7 @@ export async function detectPerformanceDegradation(
         currentCheck.latencyMs >= averageLatency * 2
     ) {
         if (!ongoingIncident) {
-            await prisma.incident.create({
+            const incident = await prisma.incident.create({
                 data: {
                     monitorId,
                     type: "PERFORMANCE",
@@ -64,7 +65,9 @@ export async function detectPerformanceDegradation(
                     )}ms.`,
                 },
             });
-                
+
+            await triggerIncidentAlerts(incident.id);
+
             console.log(
                 `Performance degradation detected for monitor: ${monitorId}`
             );
