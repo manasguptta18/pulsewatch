@@ -880,6 +880,7 @@ export const IncidentScalarFieldEnum = {
   startedAt: 'startedAt',
   resolvedAt: 'resolvedAt',
   createdAt: 'createdAt',
+  baselineLatencyMs: 'baselineLatencyMs',
   monitorId: 'monitorId'
 } as const
 

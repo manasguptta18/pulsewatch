@@ -78,7 +78,7 @@ export async function checkMonitor(monitorId: number){
     });
 
     await processIncident(monitor.id);
-    await detectPerformanceDegradation(monitor.id);
+    await detectPerformanceDegradation(monitor.id , check);
 
     return check;
 }

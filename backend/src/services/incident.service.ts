@@ -20,8 +20,9 @@ export async function processIncident(monitorId: number){
                 where:{
                     monitorId,
                     status: "ONGOING",
+                    type: "AVAILABILITY",
                 },
-            });
+            }); 
 
             if(!ongoingIncident){
                 const incident  = await prisma.incident.create({
@@ -34,7 +35,9 @@ export async function processIncident(monitorId: number){
                 
                 await triggerIncidentAlerts(incident.id);
 
-                console.log(`Incident created for monitor: ${monitorId}`);
+                console.log(
+                    `Availability incident created for monitor: ${monitorId}`
+                );
             }
         }
     }
@@ -45,6 +48,7 @@ export async function processIncident(monitorId: number){
             where: {
                 monitorId,
                 status: "ONGOING",
+                type: "AVALABILITY",
             },
         });
 
@@ -54,12 +58,14 @@ export async function processIncident(monitorId: number){
                     id : ongoingIncident.id,
                 },
                 data:{
-                    status: "Resolved",
+                    status: "RESOLVED",
                     resolvedAt: new Date(),
                 },
             });
 
-            console.log(`Incident resolved for monitor: ${monitorId}`);
+            console.log(
+                `Availability incident resolved for monitor: ${monitorId}`
+            );
         }
     }
 }

@@ -62,6 +62,8 @@ model Incident {
   resolvedAt DateTime?
   createdAt  DateTime  @default(now())
 
+  baselineLatencyMs Int?
+
   monitorId Int
   monitor   Monitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
 

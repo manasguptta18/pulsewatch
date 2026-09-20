@@ -1,4 +1,5 @@
 import {prisma} from "../lib/prisma.js";
+import {sendIncidentEmail} from "./email.service.js";
 
 export async function triggerIncidentAlerts(incidentId: number){
     const incident = await prisma.incident.findUnique({
@@ -22,12 +23,13 @@ export async function triggerIncidentAlerts(incidentId: number){
     });
 
     for(const alertRule of alertRules){
-        console.log("ALERT TRIGGERED");
-
-        console.log(`Monitor: ${incident.monitor.name}`);
-        console.log(`Incident type: ${incident.type}`);
-        console.log(`Destination: ${alertRule.destination}`);
-        console.log(`Alert type: ${alertRule.type}`);
-        console.log(`Reason: ${incident.reason}`);
+        if(alertRule.type==="EMAIL"){
+            await sendIncidentEmail(
+                alertRule.destination,
+                incident.monitor.name,
+                incident.type,
+                incident.reason ?? "No reason provided"
+            );
+        }
     }
 }
