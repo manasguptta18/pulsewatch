@@ -26,9 +26,6 @@ export async function detectPerformanceDegradation(
         },
     });
 
-    // --------------------------------
-    // CASE 1: Incident already exists
-    // --------------------------------
 
     if (ongoingIncident) {
         const baselineLatency =
@@ -57,9 +54,6 @@ export async function detectPerformanceDegradation(
         return;
     }
 
-    // --------------------------------
-    // CASE 2: No incident exists
-    // --------------------------------
 
     const previousChecks = await prisma.monitorCheck.findMany({
         where: {
