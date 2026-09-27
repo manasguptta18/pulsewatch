@@ -48,7 +48,7 @@ export async function processIncident(monitorId: number){
             where: {
                 monitorId,
                 status: "ONGOING",
-                type: "AVALABILITY",
+                type: "AVAILABILITY",
             },
         });
 

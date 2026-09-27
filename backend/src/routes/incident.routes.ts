@@ -1,11 +1,12 @@
 import {Router} from "express";
+import { authMiddleware } from "../middleware/auth.middleware.js";
 import { investigationfunction } from "../services/investigation.service";
 import { generateIncidentSummary } from "../services/ai.services.js";
 
 const router = Router();
 
 
-router.get("/:id/ai-summary", async (req,res)=>{
+router.get("/:id/ai-summary", authMiddleware,async (req,res)=>{
     try{
         const incidentId = Number(req.params.id);
 
@@ -27,7 +28,7 @@ router.get("/:id/ai-summary", async (req,res)=>{
         console.log("AI SUMMARY ERROR:",error);
 
         res.status(500).json({
-            messages: "Failed to generate AI summary",
+            message: "Failed to generate AI summary",
         });
     }
 })
