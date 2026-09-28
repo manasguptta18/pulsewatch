@@ -1,4 +1,5 @@
 import {prisma} from "../lib/prisma.js";
+import { AppError } from "../errors/app-error.js";
 
 export async function investigationfunction(incidentId: number){
     const incident = await prisma.incident.findUnique({
@@ -11,7 +12,9 @@ export async function investigationfunction(incidentId: number){
     });
 
     if(!incident){
-        throw new Error("Incident not found");
+        throw new AppError("Incident not found",
+            404
+        );
     }
 
     if(incident.type==="PERFORMANCE"){

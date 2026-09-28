@@ -1,12 +1,20 @@
 import express from "express";
+import cors from "cors";
 import { prisma } from "./lib/prisma.js";
 
 import monitorRoutes from "./routes/monitor.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import incidentRoutes from "./routes/incident.routes.js";
 import authRoutes from "./routes/auth.routes.js";
+import { errorMiddleware } from "./middleware/error.middleware.js";
 
 const app = express();
+
+app.use(
+    cors({
+        origin: "https://localhost:5173",
+    })
+)
 
 app.use(express.json());
 
@@ -36,5 +44,7 @@ app.get("/api/v1/test/slow", async (req, res) => {
         message: `Response delayed by ${delay}ms`,
     });
 });
+
+app.use(errorMiddleware);
 
 export { app };

@@ -33,8 +33,12 @@ export async function sendIncidentEmail(destination: string,
         `,
     });
 
-    if(error){
-        throw new Error(error.message);
+    if (error) {
+        console.error("RESEND ERROR:", error);
+
+        throw new Error(
+            "Failed to send incident email"
+        );
     }
 
     return data;

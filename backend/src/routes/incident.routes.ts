@@ -6,7 +6,7 @@ import { generateIncidentSummary } from "../services/ai.services.js";
 const router = Router();
 
 
-router.get("/:id/ai-summary", authMiddleware,async (req,res)=>{
+router.get("/:id/ai-summary", authMiddleware,async (req,res,next)=>{
     try{
         const incidentId = Number(req.params.id);
 
@@ -25,11 +25,7 @@ router.get("/:id/ai-summary", authMiddleware,async (req,res)=>{
             aiSummary,
         });
     }catch(error){
-        console.log("AI SUMMARY ERROR:",error);
-
-        res.status(500).json({
-            message: "Failed to generate AI summary",
-        });
+        next(error);
     }
 })
 

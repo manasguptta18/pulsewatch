@@ -2,6 +2,7 @@ import "dotenv/config";
 import { prisma } from "../lib/prisma.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { AppError } from "../errors/app-error.js";
 
 export async function loginUser(data: {
     email: string;
@@ -14,7 +15,7 @@ export async function loginUser(data: {
     });
 
     if (!user) {
-        throw new Error("Invalid email or password");
+        throw new AppError("Invalid email or password", 401);
     }
 
     const passwordMatches = await bcrypt.compare(
@@ -23,7 +24,7 @@ export async function loginUser(data: {
     );
 
     if (!passwordMatches) {
-        throw new Error("Invalid email or password");
+        throw new AppError("Invalid email or password", 401);
     }
 
     const jwtSecret = process.env.JWT_SECRET;

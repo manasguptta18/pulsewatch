@@ -1264,10 +1264,127 @@ it("should return an error when the incident does not exist", async () => {
             `Bearer ${token}`
         );
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(404);
 
     expect(response.body.message).toBe(
-        "Failed to generate AI summary"
+        "Incident not found"
     );
 });
+});
+
+it("should reject an invalid monitor body", async () => {
+    const jwtSecret = process.env.JWT_SECRET;
+
+    if (!jwtSecret) {
+        throw new Error(
+            "JWT_SECRET is not defined"
+        );
+    }
+
+    const token = jwt.sign(
+        {
+            userId: 3,
+        },
+        jwtSecret,
+        {
+            expiresIn: "1h",
+        }
+    );
+
+    const response = await request(app)
+        .post("/api/v1/monitors")
+        .set(
+            "Authorization",
+            `Bearer ${token}`
+        )
+        .send({
+            name: "",
+            url: "hello",
+        });
+
+    expect(response.status).toBe(400);
+
+    expect(response.body.message).toBe(
+        "Validation failed"
+    );
+
+    expect(response.body.errors.length)
+        .toBeGreaterThan(0);
+});
+
+it("should reject an invalid monitor update", async () => {
+    const jwtSecret = process.env.JWT_SECRET;
+
+    if (!jwtSecret) {
+        throw new Error(
+            "JWT_SECRET is not defined"
+        );
+    }
+
+    const token = jwt.sign(
+        {
+            userId: 3,
+        },
+        jwtSecret,
+        {
+            expiresIn: "1h",
+        }
+    );
+
+    const response = await request(app)
+        .patch("/api/v1/monitors/999999")
+        .set(
+            "Authorization",
+            `Bearer ${token}`
+        )
+        .send({
+            timeoutSeconds: -5,
+        });
+
+    expect(response.status).toBe(400);
+
+    expect(response.body.message).toBe(
+        "Validation failed"
+    );
+});
+
+describe("POST /api/v1/users", () => {
+    it("should reject invalid registration data", async () => {
+        const response = await request(app)
+            .post("/api/v1/users")
+            .send({
+                name: "",
+                email: "not-an-email",
+                password: "123",
+            });
+
+        expect(response.status).toBe(400);
+
+        expect(response.body.message).toBe(
+            "Validation failed"
+        );
+
+        expect(response.body.errors.length)
+            .toBeGreaterThan(0);
+    });
+});
+
+describe("POST /api/v1/auth/login", () => {
+    it("should reject invalid login data", async () => {
+        const response = await request(app)
+            .post("/api/v1/auth/login")
+            .send({
+                email: "not-an-email",
+                password: "123",
+            });
+
+        expect(response.status).toBe(400);
+
+        expect(response.body.message).toBe(
+            "Validation failed"
+        );
+
+        expect(response.body.errors.length)
+            .toBeGreaterThan(0);
+    });
 });

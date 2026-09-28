@@ -1,6 +1,7 @@
 import {prisma} from '../lib/prisma.js';
 import {processIncident} from "./incident.service.js";
 import { detectPerformanceDegradation } from "./performance.service.js";
+import { AppError } from "../errors/app-error.js";
 
 export async function createMonitor(data:{
     userId: number;
@@ -26,7 +27,7 @@ export async function checkMonitor(monitorId: number){
     });
 
     if(!monitor){
-        throw new Error("Monitor not found");
+        throw new AppError("Monitor not found" , 404);
     }
 
     const startTime = Date.now();
@@ -106,7 +107,7 @@ export async function getMonitorByIdForUser(monitorId: number,userId: number){
     });
 
     if(!monitor){
-        throw new Error("Monitor not found");
+        throw new AppError("Monitor not found" ,404);
     }
 
     return monitor;
@@ -124,7 +125,7 @@ export async function checkMonitorForUser(
     });
 
     if(!monitor){
-        throw new Error("Monitor not found");
+        throw new AppError("Monitor not found" , 404);
     }
 
     return checkMonitor(monitorId);
@@ -150,7 +151,7 @@ export async function updateMonitorForUser(
     });
 
     if(!monitor){
-        throw new Error("Monitor not found");
+        throw new AppError("Monitor not found",404);
     }
 
     const updatedMonitor = await prisma.monitor.update({
@@ -175,7 +176,7 @@ export async function deleteMonitorForUser(
     });
 
     if(!monitor){
-        throw new Error("Monitor not found");
+        throw new AppError("Monitor not found",404);
     }
 
     await prisma.monitor.delete({

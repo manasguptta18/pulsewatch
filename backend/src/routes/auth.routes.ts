@@ -1,20 +1,22 @@
-import {Router} from "express";
-import {loginUser} from "../services/auth.service";
+import { Router } from "express";
+import { loginUser } from "../services/auth.service.js";
+import { validate } from "../middleware/validate.middleware.js";
+import { loginSchema } from "../validation/user.schema.js";
 
 const router = Router();
 
-router.post("/login", async(req,res)=>{
-    try{
-        const result = await loginUser(req.body);
+router.post(
+    "/login",
+    validate(loginSchema),
+    async (req, res, next) => {
+        try {
+            const result = await loginUser(req.body);
 
-        res.json(result);
-    }catch(error){
-        console.log("LOGIN ERROR:", error);
-
-        res.status(401).json({
-            message: "Invalid email or password",
-        });
+            res.json(result);
+        } catch (error) {
+            next(error);
+        }
     }
-});
+);
 
 export default router;

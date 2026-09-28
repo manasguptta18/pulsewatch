@@ -1,18 +1,23 @@
-import {Router} from "express";
+import { Router } from "express";
+
 import { createUser } from "../services/user.service.js";
+import { validate } from "../middleware/validate.middleware.js";
+import { createUserSchema } from "../validation/user.schema.js";
 
 const router = Router();
 
-router.post("/",async (req,res)=>{
-    try{
-        const user = await createUser(req.body);
-        res.status(201).json(user);
-    }catch(error){
-        console.log(error);
-        res.status(500).json({
-            message: "failed to create user",
-        });
+router.post(
+    "/",
+    validate(createUserSchema),
+    async (req, res, next) => {
+        try {
+            const user = await createUser(req.body);
+
+            res.status(201).json(user);
+        } catch (error) {
+            next(error);
+        }
     }
-});
+);
 
 export default router;
