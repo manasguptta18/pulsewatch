@@ -1,9 +1,10 @@
-import {prisma} from '../lib/prisma.js';
-import {processIncident} from "./incident.service.js";
+import { prisma } from "../lib/prisma.js";
+import { getIO } from "../lib/socket.js";
+import { processIncident } from "./incident.service.js";
 import { detectPerformanceDegradation } from "./performance.service.js";
 import { AppError } from "../errors/app-error.js";
 
-export async function createMonitor(data:{
+export async function createMonitor(data: {
     userId: number;
     name: string;
     url: string;
@@ -19,28 +20,35 @@ export async function createMonitor(data:{
     return monitor;
 }
 
-export async function checkMonitor(monitorId: number){
+export async function checkMonitor(
+    monitorId: number
+) {
     const monitor = await prisma.monitor.findUnique({
-        where:{
-            id: monitorId,  
+        where: {
+            id: monitorId,
         },
     });
 
-    if(!monitor){
-        throw new AppError("Monitor not found" , 404);
+    if (!monitor) {
+        throw new AppError(
+            "Monitor not found",
+            404
+        );
     }
 
     const startTime = Date.now();
 
     let status = "DOWN";
     let statusCode: number | null = null;
-    let latencyMs: number| null = null;
+    let latencyMs: number | null = null;
     let errorMessage: string | null = null;
 
-    try{
+    try {
         const response = await fetch(monitor.url, {
             method: monitor.method,
-            signal: AbortSignal.timeout(monitor.timeoutSeconds * 1000),
+            signal: AbortSignal.timeout(
+                monitor.timeoutSeconds * 1000
+            ),
         });
 
         const endTime = Date.now();
@@ -48,26 +56,27 @@ export async function checkMonitor(monitorId: number){
         statusCode = response.status;
         latencyMs = endTime - startTime;
 
-        if(response.status === monitor.expectedStatus){
+        if (
+            response.status ===
+            monitor.expectedStatus
+        ) {
             status = "UP";
-        }
-        else{
+        } else {
             status = "DOWN";
+
             errorMessage = `Expected status ${monitor.expectedStatus}, got ${response.status}`;
         }
-    }catch(error){
+    } catch (error) {
         const endTime = Date.now();
 
         latencyMs = endTime - startTime;
 
-        if(error instanceof Error){
+        if (error instanceof Error) {
             errorMessage = error.message;
-        }
-        else{
+        } else {
             errorMessage = "Unknown error";
         }
     }
-
 
     const check = await prisma.monitorCheck.create({
         data: {
@@ -79,35 +88,108 @@ export async function checkMonitor(monitorId: number){
         },
     });
 
+    const io = getIO();
+
+    if (io) {
+        io.emit("monitor:updated", {
+            monitorId: monitor.id,
+
+            check: {
+                status: check.status,
+                statusCode: check.statusCode,
+                latencyMs: check.latencyMs,
+                errorMessage: check.errorMessage,
+                checkedAt:
+                    check.checkedAt.toISOString(),
+            },
+        });
+
+        console.log(
+            `Realtime update emitted for monitor: ${monitor.name}`
+        );
+    }
+
     await processIncident(monitor.id);
-    await detectPerformanceDegradation(monitor.id , check);
+
+    await detectPerformanceDegradation(
+        monitor.id,
+        check
+    );
 
     return check;
 }
 
-export async function getUserMonitors(userId: number){
+export async function getUserMonitors(
+    userId: number
+) {
     const monitors = await prisma.monitor.findMany({
-        where:{
+        where: {
             userId,
         },
-        orderBy:{
+
+        orderBy: {
             createdAt: "desc",
+        },
+
+        include: {
+            checks: {
+                orderBy: {
+                    checkedAt: "desc",
+                },
+
+                take: 20,
+
+                select: {
+                    status: true,
+                    statusCode: true,
+                    latencyMs: true,
+                    errorMessage: true,
+                    checkedAt: true,
+                },
+            },
+
+            incidents: {
+                where: {
+                    status: "ONGOING",
+                },
+
+                orderBy: {
+                    startedAt: "desc",
+                },
+
+                take: 1,
+
+                select: {
+                    id: true,
+                    type: true,
+                    status: true,
+                    reason: true,
+                    startedAt: true,
+                    resolvedAt: true,
+                },
+            },
         },
     });
 
     return monitors;
 }
 
-export async function getMonitorByIdForUser(monitorId: number,userId: number){
+export async function getMonitorByIdForUser(
+    monitorId: number,
+    userId: number
+) {
     const monitor = await prisma.monitor.findFirst({
-        where:{
+        where: {
             id: monitorId,
             userId: userId,
         },
     });
 
-    if(!monitor){
-        throw new AppError("Monitor not found" ,404);
+    if (!monitor) {
+        throw new AppError(
+            "Monitor not found",
+            404
+        );
     }
 
     return monitor;
@@ -116,7 +198,7 @@ export async function getMonitorByIdForUser(monitorId: number,userId: number){
 export async function checkMonitorForUser(
     monitorId: number,
     userId: number
-){
+) {
     const monitor = await prisma.monitor.findFirst({
         where: {
             id: monitorId,
@@ -124,8 +206,11 @@ export async function checkMonitorForUser(
         },
     });
 
-    if(!monitor){
-        throw new AppError("Monitor not found" , 404);
+    if (!monitor) {
+        throw new AppError(
+            "Monitor not found",
+            404
+        );
     }
 
     return checkMonitor(monitorId);
@@ -134,32 +219,37 @@ export async function checkMonitorForUser(
 export async function updateMonitorForUser(
     monitorId: number,
     userId: number,
-    data:{
+    data: {
         name?: string;
         url?: string;
         method?: string;
+        intervalSeconds?: number;
         timeoutSeconds?: number;
         expectedStatus?: number;
         isActive?: boolean;
     }
-){
+) {
     const monitor = await prisma.monitor.findFirst({
-        where:{
+        where: {
             id: monitorId,
             userId: userId,
         },
     });
 
-    if(!monitor){
-        throw new AppError("Monitor not found",404);
+    if (!monitor) {
+        throw new AppError(
+            "Monitor not found",
+            404
+        );
     }
 
-    const updatedMonitor = await prisma.monitor.update({
-        where:{
-            id: monitorId,
-        },
-        data,
-    });
+    const updatedMonitor =
+        await prisma.monitor.update({
+            where: {
+                id: monitorId,
+            },
+            data,
+        });
 
     return updatedMonitor;
 }
@@ -167,20 +257,23 @@ export async function updateMonitorForUser(
 export async function deleteMonitorForUser(
     monitorId: number,
     userId: number
-){
+) {
     const monitor = await prisma.monitor.findFirst({
-        where:{
+        where: {
             id: monitorId,
             userId: userId,
         },
     });
 
-    if(!monitor){
-        throw new AppError("Monitor not found",404);
+    if (!monitor) {
+        throw new AppError(
+            "Monitor not found",
+            404
+        );
     }
 
     await prisma.monitor.delete({
-        where:{
+        where: {
             id: monitorId,
         },
     });

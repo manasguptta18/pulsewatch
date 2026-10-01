@@ -26,7 +26,8 @@
     "jsonwebtoken": "^9.0.3",
     "ollama": "^0.6.3",
     "pg": "^8.23.0",
-    "resend": "^6.28.1"
+    "resend": "^6.28.1",
+    "socket.io": "^4.8.4"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",

@@ -1,5 +1,6 @@
 import {prisma} from "../lib/prisma.js";
 import { triggerIncidentAlerts } from "./alert.service.js";
+import { getIO } from "../lib/socket.js";
 
 export async function processIncident(monitorId: number){
     const recentChecks = await prisma.monitorCheck.findMany({
@@ -34,7 +35,22 @@ export async function processIncident(monitorId: number){
                 });
                 
                 await triggerIncidentAlerts(incident.id);
+                const io = getIO();
 
+                if(io){
+                    io.emit("incident:created",{
+                        incidentId: incident.id,
+                        monitorId: incident.monitorId,
+                        type: incident.type,
+                        status: incident.status,
+                        reason: incident.reason,
+                        startedAt:
+                            incident.startedAt.toISOString(),
+                    });
+                    console.log(
+                        `Realtime incident:created emitted for monitor: ${monitorId}`
+                    );
+                }
                 console.log(
                     `Availability incident created for monitor: ${monitorId}`
                 );
@@ -53,7 +69,7 @@ export async function processIncident(monitorId: number){
         });
 
         if(ongoingIncident){
-            await prisma.incident.update({
+            const resolvedIncident = await prisma.incident.update({
                 where:{
                     id : ongoingIncident.id,
                 },
@@ -62,6 +78,27 @@ export async function processIncident(monitorId: number){
                     resolvedAt: new Date(),
                 },
             });
+
+            const io = getIO();
+             if (io) {
+                io.emit("incident:resolved", {
+                    incidentId:
+                        resolvedIncident.id,
+                    monitorId:
+                        resolvedIncident.monitorId,
+                    type:
+                        resolvedIncident.type,
+                    status:
+                        resolvedIncident.status,
+                    resolvedAt:
+                        resolvedIncident.resolvedAt
+                            ?.toISOString() ?? null,
+                });
+
+                console.log(
+                    `Realtime incident:resolved emitted for monitor: ${monitorId}`
+                );
+            }
 
             console.log(
                 `Availability incident resolved for monitor: ${monitorId}`
