@@ -183,6 +183,42 @@ export async function getMonitorByIdForUser(
             id: monitorId,
             userId: userId,
         },
+        include: {
+            checks: {
+                orderBy: {
+                    checkedAt: "desc",
+                },
+
+                take: 50,
+
+                select: {
+                    id: true,
+                    status: true,
+                    statusCode: true,
+                    latencyMs: true,
+                    errorMessage: true,
+                    checkedAt: true,
+                },
+            },
+
+            incidents: {
+                orderBy: {
+                    startedAt: "desc",
+                },
+
+                take: 20,
+
+                select: {
+                    id: true,
+                    type: true,
+                    status: true,
+                    reason: true,
+                    startedAt: true,
+                    resolvedAt: true,
+                    baselineLatencyMs: true,
+                },
+            },
+        },
     });
 
     if (!monitor) {
