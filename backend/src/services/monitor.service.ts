@@ -3,12 +3,22 @@ import { getIO } from "../lib/socket.js";
 import { processIncident } from "./incident.service.js";
 import { detectPerformanceDegradation } from "./performance.service.js";
 import { AppError } from "../errors/app-error.js";
+import {
+    requestPublicMonitor,
+    validateMonitorUrl,
+} from "./safe-monitor-http.js";
 
 export async function createMonitor(data: {
     userId: number;
     name: string;
     url: string;
 }) {
+    try {
+        await validateMonitorUrl(data.url);
+    } catch {
+        throw new AppError("Monitor URL is not allowed", 400);
+    }
+
     const monitor = await prisma.monitor.create({
         data: {
             userId: data.userId,
@@ -44,38 +54,33 @@ export async function checkMonitor(
     let errorMessage: string | null = null;
 
     try {
-        const response = await fetch(monitor.url, {
-            method: monitor.method,
-            signal: AbortSignal.timeout(
-                monitor.timeoutSeconds * 1000
-            ),
-        });
+        const response = await requestPublicMonitor(
+            monitor.url,
+            monitor.method,
+            monitor.timeoutSeconds * 1000,
+        );
 
         const endTime = Date.now();
 
-        statusCode = response.status;
+        statusCode = response.statusCode;
         latencyMs = endTime - startTime;
 
         if (
-            response.status ===
+            response.statusCode ===
             monitor.expectedStatus
         ) {
             status = "UP";
         } else {
             status = "DOWN";
 
-            errorMessage = `Expected status ${monitor.expectedStatus}, got ${response.status}`;
+            errorMessage = `Expected status ${monitor.expectedStatus}, got ${response.statusCode}`;
         }
-    } catch (error) {
+    } catch {
         const endTime = Date.now();
 
         latencyMs = endTime - startTime;
 
-        if (error instanceof Error) {
-            errorMessage = error.message;
-        } else {
-            errorMessage = "Unknown error";
-        }
+        errorMessage = "Monitor check failed";
     }
 
     const check = await prisma.monitorCheck.create({
@@ -277,6 +282,14 @@ export async function updateMonitorForUser(
             "Monitor not found",
             404
         );
+    }
+
+    if (data.url !== undefined) {
+        try {
+            await validateMonitorUrl(data.url);
+        } catch {
+            throw new AppError("Monitor URL is not allowed", 400);
+        }
     }
 
     const updatedMonitor =

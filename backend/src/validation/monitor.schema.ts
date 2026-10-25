@@ -1,4 +1,17 @@
 import Joi from "joi";
+import { assertMonitorUrlSyntax } from "../services/safe-monitor-http.js";
+
+const monitorUrl = Joi.string()
+    .trim()
+    .uri({ scheme: ["http", "https"] })
+    .custom((value, helpers) => {
+        try {
+            assertMonitorUrlSyntax(value);
+            return value;
+        } catch {
+            return helpers.error("string.uri");
+        }
+    });
 
 export const createMonitorSchema = Joi.object({
     name: Joi.string()
@@ -7,12 +20,7 @@ export const createMonitorSchema = Joi.object({
         .max(500)
         .required(),
     
-    url: Joi.string()
-        .trim()
-        .uri({
-            scheme: ["http", "https"],
-    })
-    .required(),
+    url: monitorUrl.required(),
 });
 
 export const updateMonitorSchema =
@@ -22,11 +30,7 @@ export const updateMonitorSchema =
             .min(1)
             .max(100),
 
-        url: Joi.string()
-            .trim()
-            .uri({
-                scheme: ["http", "https"],
-            }),
+        url: monitorUrl,
 
         method: Joi.string()
             .valid("GET", "POST", "PUT", "PATCH", "DELETE"),
