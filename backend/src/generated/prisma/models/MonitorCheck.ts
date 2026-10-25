@@ -47,6 +47,7 @@ export type MonitorCheckMinAggregateOutputType = {
   latencyMs: number | null
   errorMessage: string | null
   checkedAt: Date | null
+  scheduledOccurrenceId: string | null
   monitorId: number | null
 }
 
@@ -57,6 +58,7 @@ export type MonitorCheckMaxAggregateOutputType = {
   latencyMs: number | null
   errorMessage: string | null
   checkedAt: Date | null
+  scheduledOccurrenceId: string | null
   monitorId: number | null
 }
 
@@ -67,6 +69,7 @@ export type MonitorCheckCountAggregateOutputType = {
   latencyMs: number
   errorMessage: number
   checkedAt: number
+  scheduledOccurrenceId: number
   monitorId: number
   _all: number
 }
@@ -93,6 +96,7 @@ export type MonitorCheckMinAggregateInputType = {
   latencyMs?: true
   errorMessage?: true
   checkedAt?: true
+  scheduledOccurrenceId?: true
   monitorId?: true
 }
 
@@ -103,6 +107,7 @@ export type MonitorCheckMaxAggregateInputType = {
   latencyMs?: true
   errorMessage?: true
   checkedAt?: true
+  scheduledOccurrenceId?: true
   monitorId?: true
 }
 
@@ -113,6 +118,7 @@ export type MonitorCheckCountAggregateInputType = {
   latencyMs?: true
   errorMessage?: true
   checkedAt?: true
+  scheduledOccurrenceId?: true
   monitorId?: true
   _all?: true
 }
@@ -210,6 +216,7 @@ export type MonitorCheckGroupByOutputType = {
   latencyMs: number | null
   errorMessage: string | null
   checkedAt: Date
+  scheduledOccurrenceId: string | null
   monitorId: number
   _count: MonitorCheckCountAggregateOutputType | null
   _avg: MonitorCheckAvgAggregateOutputType | null
@@ -243,6 +250,7 @@ export type MonitorCheckWhereInput = {
   latencyMs?: Prisma.IntNullableFilter<"MonitorCheck"> | number | null
   errorMessage?: Prisma.StringNullableFilter<"MonitorCheck"> | string | null
   checkedAt?: Prisma.DateTimeFilter<"MonitorCheck"> | Date | string
+  scheduledOccurrenceId?: Prisma.StringNullableFilter<"MonitorCheck"> | string | null
   monitorId?: Prisma.IntFilter<"MonitorCheck"> | number
   monitor?: Prisma.XOR<Prisma.MonitorScalarRelationFilter, Prisma.MonitorWhereInput>
 }
@@ -254,12 +262,14 @@ export type MonitorCheckOrderByWithRelationInput = {
   latencyMs?: Prisma.SortOrderInput | Prisma.SortOrder
   errorMessage?: Prisma.SortOrderInput | Prisma.SortOrder
   checkedAt?: Prisma.SortOrder
+  scheduledOccurrenceId?: Prisma.SortOrderInput | Prisma.SortOrder
   monitorId?: Prisma.SortOrder
   monitor?: Prisma.MonitorOrderByWithRelationInput
 }
 
 export type MonitorCheckWhereUniqueInput = Prisma.AtLeast<{
   id?: number
+  monitorId_scheduledOccurrenceId?: Prisma.MonitorCheckMonitorIdScheduledOccurrenceIdCompoundUniqueInput
   AND?: Prisma.MonitorCheckWhereInput | Prisma.MonitorCheckWhereInput[]
   OR?: Prisma.MonitorCheckWhereInput[]
   NOT?: Prisma.MonitorCheckWhereInput | Prisma.MonitorCheckWhereInput[]
@@ -268,9 +278,10 @@ export type MonitorCheckWhereUniqueInput = Prisma.AtLeast<{
   latencyMs?: Prisma.IntNullableFilter<"MonitorCheck"> | number | null
   errorMessage?: Prisma.StringNullableFilter<"MonitorCheck"> | string | null
   checkedAt?: Prisma.DateTimeFilter<"MonitorCheck"> | Date | string
+  scheduledOccurrenceId?: Prisma.StringNullableFilter<"MonitorCheck"> | string | null
   monitorId?: Prisma.IntFilter<"MonitorCheck"> | number
   monitor?: Prisma.XOR<Prisma.MonitorScalarRelationFilter, Prisma.MonitorWhereInput>
-}, "id">
+}, "id" | "monitorId_scheduledOccurrenceId">
 
 export type MonitorCheckOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -279,6 +290,7 @@ export type MonitorCheckOrderByWithAggregationInput = {
   latencyMs?: Prisma.SortOrderInput | Prisma.SortOrder
   errorMessage?: Prisma.SortOrderInput | Prisma.SortOrder
   checkedAt?: Prisma.SortOrder
+  scheduledOccurrenceId?: Prisma.SortOrderInput | Prisma.SortOrder
   monitorId?: Prisma.SortOrder
   _count?: Prisma.MonitorCheckCountOrderByAggregateInput
   _avg?: Prisma.MonitorCheckAvgOrderByAggregateInput
@@ -297,6 +309,7 @@ export type MonitorCheckScalarWhereWithAggregatesInput = {
   latencyMs?: Prisma.IntNullableWithAggregatesFilter<"MonitorCheck"> | number | null
   errorMessage?: Prisma.StringNullableWithAggregatesFilter<"MonitorCheck"> | string | null
   checkedAt?: Prisma.DateTimeWithAggregatesFilter<"MonitorCheck"> | Date | string
+  scheduledOccurrenceId?: Prisma.StringNullableWithAggregatesFilter<"MonitorCheck"> | string | null
   monitorId?: Prisma.IntWithAggregatesFilter<"MonitorCheck"> | number
 }
 
@@ -306,6 +319,7 @@ export type MonitorCheckCreateInput = {
   latencyMs?: number | null
   errorMessage?: string | null
   checkedAt?: Date | string
+  scheduledOccurrenceId?: string | null
   monitor: Prisma.MonitorCreateNestedOneWithoutChecksInput
 }
 
@@ -316,6 +330,7 @@ export type MonitorCheckUncheckedCreateInput = {
   latencyMs?: number | null
   errorMessage?: string | null
   checkedAt?: Date | string
+  scheduledOccurrenceId?: string | null
   monitorId: number
 }
 
@@ -325,6 +340,7 @@ export type MonitorCheckUpdateInput = {
   latencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   checkedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  scheduledOccurrenceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   monitor?: Prisma.MonitorUpdateOneRequiredWithoutChecksNestedInput
 }
 
@@ -335,6 +351,7 @@ export type MonitorCheckUncheckedUpdateInput = {
   latencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   checkedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  scheduledOccurrenceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   monitorId?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
@@ -345,6 +362,7 @@ export type MonitorCheckCreateManyInput = {
   latencyMs?: number | null
   errorMessage?: string | null
   checkedAt?: Date | string
+  scheduledOccurrenceId?: string | null
   monitorId: number
 }
 
@@ -354,6 +372,7 @@ export type MonitorCheckUpdateManyMutationInput = {
   latencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   checkedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  scheduledOccurrenceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type MonitorCheckUncheckedUpdateManyInput = {
@@ -363,6 +382,7 @@ export type MonitorCheckUncheckedUpdateManyInput = {
   latencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   checkedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  scheduledOccurrenceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   monitorId?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
@@ -376,6 +396,11 @@ export type MonitorCheckOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
+export type MonitorCheckMonitorIdScheduledOccurrenceIdCompoundUniqueInput = {
+  monitorId: number
+  scheduledOccurrenceId: string
+}
+
 export type MonitorCheckCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   status?: Prisma.SortOrder
@@ -383,6 +408,7 @@ export type MonitorCheckCountOrderByAggregateInput = {
   latencyMs?: Prisma.SortOrder
   errorMessage?: Prisma.SortOrder
   checkedAt?: Prisma.SortOrder
+  scheduledOccurrenceId?: Prisma.SortOrder
   monitorId?: Prisma.SortOrder
 }
 
@@ -400,6 +426,7 @@ export type MonitorCheckMaxOrderByAggregateInput = {
   latencyMs?: Prisma.SortOrder
   errorMessage?: Prisma.SortOrder
   checkedAt?: Prisma.SortOrder
+  scheduledOccurrenceId?: Prisma.SortOrder
   monitorId?: Prisma.SortOrder
 }
 
@@ -410,6 +437,7 @@ export type MonitorCheckMinOrderByAggregateInput = {
   latencyMs?: Prisma.SortOrder
   errorMessage?: Prisma.SortOrder
   checkedAt?: Prisma.SortOrder
+  scheduledOccurrenceId?: Prisma.SortOrder
   monitorId?: Prisma.SortOrder
 }
 
@@ -480,6 +508,7 @@ export type MonitorCheckCreateWithoutMonitorInput = {
   latencyMs?: number | null
   errorMessage?: string | null
   checkedAt?: Date | string
+  scheduledOccurrenceId?: string | null
 }
 
 export type MonitorCheckUncheckedCreateWithoutMonitorInput = {
@@ -489,6 +518,7 @@ export type MonitorCheckUncheckedCreateWithoutMonitorInput = {
   latencyMs?: number | null
   errorMessage?: string | null
   checkedAt?: Date | string
+  scheduledOccurrenceId?: string | null
 }
 
 export type MonitorCheckCreateOrConnectWithoutMonitorInput = {
@@ -527,6 +557,7 @@ export type MonitorCheckScalarWhereInput = {
   latencyMs?: Prisma.IntNullableFilter<"MonitorCheck"> | number | null
   errorMessage?: Prisma.StringNullableFilter<"MonitorCheck"> | string | null
   checkedAt?: Prisma.DateTimeFilter<"MonitorCheck"> | Date | string
+  scheduledOccurrenceId?: Prisma.StringNullableFilter<"MonitorCheck"> | string | null
   monitorId?: Prisma.IntFilter<"MonitorCheck"> | number
 }
 
@@ -537,6 +568,7 @@ export type MonitorCheckCreateManyMonitorInput = {
   latencyMs?: number | null
   errorMessage?: string | null
   checkedAt?: Date | string
+  scheduledOccurrenceId?: string | null
 }
 
 export type MonitorCheckUpdateWithoutMonitorInput = {
@@ -545,6 +577,7 @@ export type MonitorCheckUpdateWithoutMonitorInput = {
   latencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   checkedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  scheduledOccurrenceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type MonitorCheckUncheckedUpdateWithoutMonitorInput = {
@@ -554,6 +587,7 @@ export type MonitorCheckUncheckedUpdateWithoutMonitorInput = {
   latencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   checkedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  scheduledOccurrenceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type MonitorCheckUncheckedUpdateManyWithoutMonitorInput = {
@@ -563,6 +597,7 @@ export type MonitorCheckUncheckedUpdateManyWithoutMonitorInput = {
   latencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   checkedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  scheduledOccurrenceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 
@@ -574,6 +609,7 @@ export type MonitorCheckSelect<ExtArgs extends runtime.Types.Extensions.Internal
   latencyMs?: boolean
   errorMessage?: boolean
   checkedAt?: boolean
+  scheduledOccurrenceId?: boolean
   monitorId?: boolean
   monitor?: boolean | Prisma.MonitorDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["monitorCheck"]>
@@ -585,6 +621,7 @@ export type MonitorCheckSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
   latencyMs?: boolean
   errorMessage?: boolean
   checkedAt?: boolean
+  scheduledOccurrenceId?: boolean
   monitorId?: boolean
   monitor?: boolean | Prisma.MonitorDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["monitorCheck"]>
@@ -596,6 +633,7 @@ export type MonitorCheckSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
   latencyMs?: boolean
   errorMessage?: boolean
   checkedAt?: boolean
+  scheduledOccurrenceId?: boolean
   monitorId?: boolean
   monitor?: boolean | Prisma.MonitorDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["monitorCheck"]>
@@ -607,10 +645,11 @@ export type MonitorCheckSelectScalar = {
   latencyMs?: boolean
   errorMessage?: boolean
   checkedAt?: boolean
+  scheduledOccurrenceId?: boolean
   monitorId?: boolean
 }
 
-export type MonitorCheckOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "status" | "statusCode" | "latencyMs" | "errorMessage" | "checkedAt" | "monitorId", ExtArgs["result"]["monitorCheck"]>
+export type MonitorCheckOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "status" | "statusCode" | "latencyMs" | "errorMessage" | "checkedAt" | "scheduledOccurrenceId" | "monitorId", ExtArgs["result"]["monitorCheck"]>
 export type MonitorCheckInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   monitor?: boolean | Prisma.MonitorDefaultArgs<ExtArgs>
 }
@@ -633,6 +672,7 @@ export type $MonitorCheckPayload<ExtArgs extends runtime.Types.Extensions.Intern
     latencyMs: number | null
     errorMessage: string | null
     checkedAt: Date
+    scheduledOccurrenceId: string | null
     monitorId: number
   }, ExtArgs["result"]["monitorCheck"]>
   composites: {}
@@ -1064,6 +1104,7 @@ export interface MonitorCheckFieldRefs {
   readonly latencyMs: Prisma.FieldRef<"MonitorCheck", 'Int'>
   readonly errorMessage: Prisma.FieldRef<"MonitorCheck", 'String'>
   readonly checkedAt: Prisma.FieldRef<"MonitorCheck", 'DateTime'>
+  readonly scheduledOccurrenceId: Prisma.FieldRef<"MonitorCheck", 'String'>
   readonly monitorId: Prisma.FieldRef<"MonitorCheck", 'Int'>
 }
     

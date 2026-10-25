@@ -8,7 +8,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction){
 
     if(!jwtSecret){
         return res.status(500).json({
-            message: "JWT_SECRET is not configured",
+            message: "Authentication is temporarily unavailable",
         });
     }
 
@@ -24,22 +24,30 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction){
 
     if(parts.length!==2 || parts[0]!== "Bearer" || !parts[1]){
         return res.status(401).json({
-            message: "Invalid autorization format",
+            message: "Invalid authorization format",
         });
     }
 
     const token = parts[1];
 
     try{
-        const decoded = jwt.verify(
-            token,
-            jwtSecret
-        ) as {userId: number};
+        const decoded = jwt.verify(token, jwtSecret, {
+            algorithms: ["HS256"],
+        });
+
+        if (
+            typeof decoded !== "object" ||
+            decoded === null ||
+            !Number.isSafeInteger(decoded.userId) ||
+            decoded.userId <= 0
+        ) {
+            return res.status(401).json({ message: "Invalid or expired token" });
+        }
 
         req.userId = decoded.userId;
 
         next();
-    }catch(error){
+    }catch{
         return res.status(401).json({
             message: "Invalid or expired token",
         });

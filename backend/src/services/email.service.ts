@@ -1,44 +1,83 @@
 import "dotenv/config";
 import {Resend} from "resend";
 
-const apiKey = process.env.RESEND_API_KEY;
+let resend: Resend | undefined;
 
-if(!apiKey){
-    throw new Error("RESEND_API_KEY is not defined");
+export class EmailDeliveryError extends Error {
+    constructor(readonly retryable: boolean) {
+        super("Incident email delivery failed");
+        this.name = "EmailDeliveryError";
+    }
 }
 
-const resend = new Resend(apiKey);
+function escapeHtml(value: string): string {
+    return value.replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+    })[character]!);
+}
+
+function isRetryableProviderFailure(error: unknown): boolean {
+    if (typeof error !== "object" || error === null) return true;
+    const candidate = error as { statusCode?: unknown; status?: unknown };
+    const status = typeof candidate.statusCode === "number"
+        ? candidate.statusCode
+        : candidate.status;
+    if (typeof status !== "number") return true;
+    return status === 408 || status === 429 || status >= 500;
+}
 
 export async function sendIncidentEmail(destination: string,
     monitorName: string,
     incidentType: string,
     reason: string
 ){
-    const {data,error} = await resend.emails.send({
-        from: "PulseWatch <onboarding@resend.dev>",
-        to: [destination],
-        subject:  `🚨 PulseWatch Alert: ${monitorName}`,
-        html: `
-            <h2>PulseWatch Incident Alert</h2>
+    if (!process.env.RESEND_API_KEY) {
+        throw new EmailDeliveryError(false);
+    }
+    resend ??= new Resend(process.env.RESEND_API_KEY);
 
-            <p><strong>Monitor:</strong> ${monitorName}</p>
+    const safeMonitorName = escapeHtml(monitorName);
+    const safeIncidentType = escapeHtml(incidentType);
+    const safeReason = escapeHtml(reason);
+    const safeSubjectName = monitorName.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 160);
+    const sender = process.env.RESEND_FROM_EMAIL?.trim() || "PulseWatch <onboarding@resend.dev>";
+    if (/[\r\n]/.test(sender)) throw new EmailDeliveryError(false);
 
-            <p><strong>Incident Type:</strong> ${incidentType}</p>
+    let result: Awaited<ReturnType<typeof resend.emails.send>>;
+    try {
+        result = await resend.emails.send({
+            from: sender,
+            to: [destination],
+            subject:  `🚨 PulseWatch Alert: ${safeSubjectName}`,
+            html: `
+                <h2>PulseWatch Incident Alert</h2>
 
-            <p><strong>Reason:</strong> ${reason}</p>
+                <p><strong>Monitor:</strong> ${safeMonitorName}</p>
 
-            <p>
-                PulseWatch detected an issue with your monitored API.
-            </p>
-        `,
-    });
+                <p><strong>Incident Type:</strong> ${safeIncidentType}</p>
+
+                <p><strong>Reason:</strong> ${safeReason}</p>
+
+                <p>
+                    PulseWatch detected an issue with your monitored API.
+                </p>
+            `,
+        });
+    } catch (error) {
+        throw new EmailDeliveryError(isRetryableProviderFailure(error));
+    }
+
+    const { data, error } = result;
 
     if (error) {
-        console.error("RESEND ERROR:", error);
-
-        throw new Error(
-            "Failed to send incident email"
-        );
+        // Provider errors can include request metadata; keep credentials and
+        // internal delivery details out of application logs.
+        console.error("Incident email provider rejected the send request");
+        throw new EmailDeliveryError(isRetryableProviderFailure(error));
     }
 
     return data;

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
     createSocketAuthMiddleware,
     emitToUser,
+    setSocketEventPublisher,
     userRoomId,
 } from "./socket.js";
 
@@ -66,6 +67,29 @@ describe("Socket.IO incident authorization", () => {
             expect(userRoomId(17)).toBe("user:17");
             expect(to).toHaveBeenCalledExactlyOnceWith("user:17");
             expect(emit).toHaveBeenCalledExactlyOnceWith(event, payload);
+        },
+    );
+
+    it.each(["incident:created", "incident:resolved", "monitor:updated"] as const)(
+        "publishes worker %s events to only the owner room",
+        (event) => {
+            const publish = vi.fn();
+            setSocketEventPublisher((room, publishedEvent, payload) => {
+                publish(room, publishedEvent, payload);
+            });
+
+            try {
+                const payload = { monitorId: 12 };
+                emitToUser(17, event, payload, null);
+
+                expect(publish).toHaveBeenCalledExactlyOnceWith(
+                    "user:17",
+                    event,
+                    payload,
+                );
+            } finally {
+                setSocketEventPublisher(null);
+            }
         },
     );
 });

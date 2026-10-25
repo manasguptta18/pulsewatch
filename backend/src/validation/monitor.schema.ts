@@ -17,7 +17,7 @@ export const createMonitorSchema = Joi.object({
     name: Joi.string()
         .trim()
         .min(1)
-        .max(500)
+        .max(100)
         .required(),
     
     url: monitorUrl.required(),

@@ -161,6 +161,13 @@ describe("monitor URL policy", () => {
         }
     });
 
+    it("bounds DNS validation for create and update requests", async () => {
+        await expect(validateMonitorUrl("https://slow.example/", {
+            resolveHost: () => new Promise(() => undefined),
+            validationTimeoutMs: 5,
+        })).rejects.toBeInstanceOf(MonitorUrlPolicyError);
+    });
+
     it("rejects private, loopback, mapped, multicast, reserved, and link-local addresses", () => {
         const addresses = [
             ["0.1.2.3", 4], ["10.0.0.1", 4], ["100.64.0.1", 4],

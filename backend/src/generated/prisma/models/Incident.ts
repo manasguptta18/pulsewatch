@@ -257,6 +257,7 @@ export type IncidentWhereInput = {
   baselineLatencyMs?: Prisma.IntNullableFilter<"Incident"> | number | null
   monitorId?: Prisma.IntFilter<"Incident"> | number
   monitor?: Prisma.XOR<Prisma.MonitorScalarRelationFilter, Prisma.MonitorWhereInput>
+  notificationOutbox?: Prisma.NotificationOutboxListRelationFilter
 }
 
 export type IncidentOrderByWithRelationInput = {
@@ -270,6 +271,7 @@ export type IncidentOrderByWithRelationInput = {
   baselineLatencyMs?: Prisma.SortOrderInput | Prisma.SortOrder
   monitorId?: Prisma.SortOrder
   monitor?: Prisma.MonitorOrderByWithRelationInput
+  notificationOutbox?: Prisma.NotificationOutboxOrderByRelationAggregateInput
 }
 
 export type IncidentWhereUniqueInput = Prisma.AtLeast<{
@@ -286,6 +288,7 @@ export type IncidentWhereUniqueInput = Prisma.AtLeast<{
   baselineLatencyMs?: Prisma.IntNullableFilter<"Incident"> | number | null
   monitorId?: Prisma.IntFilter<"Incident"> | number
   monitor?: Prisma.XOR<Prisma.MonitorScalarRelationFilter, Prisma.MonitorWhereInput>
+  notificationOutbox?: Prisma.NotificationOutboxListRelationFilter
 }, "id">
 
 export type IncidentOrderByWithAggregationInput = {
@@ -329,6 +332,7 @@ export type IncidentCreateInput = {
   createdAt?: Date | string
   baselineLatencyMs?: number | null
   monitor: Prisma.MonitorCreateNestedOneWithoutIncidentsInput
+  notificationOutbox?: Prisma.NotificationOutboxCreateNestedManyWithoutIncidentInput
 }
 
 export type IncidentUncheckedCreateInput = {
@@ -341,6 +345,7 @@ export type IncidentUncheckedCreateInput = {
   createdAt?: Date | string
   baselineLatencyMs?: number | null
   monitorId: number
+  notificationOutbox?: Prisma.NotificationOutboxUncheckedCreateNestedManyWithoutIncidentInput
 }
 
 export type IncidentUpdateInput = {
@@ -352,6 +357,7 @@ export type IncidentUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   baselineLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   monitor?: Prisma.MonitorUpdateOneRequiredWithoutIncidentsNestedInput
+  notificationOutbox?: Prisma.NotificationOutboxUpdateManyWithoutIncidentNestedInput
 }
 
 export type IncidentUncheckedUpdateInput = {
@@ -364,6 +370,7 @@ export type IncidentUncheckedUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   baselineLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   monitorId?: Prisma.IntFieldUpdateOperationsInput | number
+  notificationOutbox?: Prisma.NotificationOutboxUncheckedUpdateManyWithoutIncidentNestedInput
 }
 
 export type IncidentCreateManyInput = {
@@ -458,6 +465,11 @@ export type IncidentSumOrderByAggregateInput = {
   monitorId?: Prisma.SortOrder
 }
 
+export type IncidentNullableScalarRelationFilter = {
+  is?: Prisma.IncidentWhereInput | null
+  isNot?: Prisma.IncidentWhereInput | null
+}
+
 export type IncidentCreateNestedManyWithoutMonitorInput = {
   create?: Prisma.XOR<Prisma.IncidentCreateWithoutMonitorInput, Prisma.IncidentUncheckedCreateWithoutMonitorInput> | Prisma.IncidentCreateWithoutMonitorInput[] | Prisma.IncidentUncheckedCreateWithoutMonitorInput[]
   connectOrCreate?: Prisma.IncidentCreateOrConnectWithoutMonitorInput | Prisma.IncidentCreateOrConnectWithoutMonitorInput[]
@@ -504,6 +516,22 @@ export type NullableDateTimeFieldUpdateOperationsInput = {
   set?: Date | string | null
 }
 
+export type IncidentCreateNestedOneWithoutNotificationOutboxInput = {
+  create?: Prisma.XOR<Prisma.IncidentCreateWithoutNotificationOutboxInput, Prisma.IncidentUncheckedCreateWithoutNotificationOutboxInput>
+  connectOrCreate?: Prisma.IncidentCreateOrConnectWithoutNotificationOutboxInput
+  connect?: Prisma.IncidentWhereUniqueInput
+}
+
+export type IncidentUpdateOneWithoutNotificationOutboxNestedInput = {
+  create?: Prisma.XOR<Prisma.IncidentCreateWithoutNotificationOutboxInput, Prisma.IncidentUncheckedCreateWithoutNotificationOutboxInput>
+  connectOrCreate?: Prisma.IncidentCreateOrConnectWithoutNotificationOutboxInput
+  upsert?: Prisma.IncidentUpsertWithoutNotificationOutboxInput
+  disconnect?: Prisma.IncidentWhereInput | boolean
+  delete?: Prisma.IncidentWhereInput | boolean
+  connect?: Prisma.IncidentWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.IncidentUpdateToOneWithWhereWithoutNotificationOutboxInput, Prisma.IncidentUpdateWithoutNotificationOutboxInput>, Prisma.IncidentUncheckedUpdateWithoutNotificationOutboxInput>
+}
+
 export type IncidentCreateWithoutMonitorInput = {
   status?: string
   type?: string
@@ -512,6 +540,7 @@ export type IncidentCreateWithoutMonitorInput = {
   resolvedAt?: Date | string | null
   createdAt?: Date | string
   baselineLatencyMs?: number | null
+  notificationOutbox?: Prisma.NotificationOutboxCreateNestedManyWithoutIncidentInput
 }
 
 export type IncidentUncheckedCreateWithoutMonitorInput = {
@@ -523,6 +552,7 @@ export type IncidentUncheckedCreateWithoutMonitorInput = {
   resolvedAt?: Date | string | null
   createdAt?: Date | string
   baselineLatencyMs?: number | null
+  notificationOutbox?: Prisma.NotificationOutboxUncheckedCreateNestedManyWithoutIncidentInput
 }
 
 export type IncidentCreateOrConnectWithoutMonitorInput = {
@@ -566,6 +596,68 @@ export type IncidentScalarWhereInput = {
   monitorId?: Prisma.IntFilter<"Incident"> | number
 }
 
+export type IncidentCreateWithoutNotificationOutboxInput = {
+  status?: string
+  type?: string
+  reason?: string | null
+  startedAt?: Date | string
+  resolvedAt?: Date | string | null
+  createdAt?: Date | string
+  baselineLatencyMs?: number | null
+  monitor: Prisma.MonitorCreateNestedOneWithoutIncidentsInput
+}
+
+export type IncidentUncheckedCreateWithoutNotificationOutboxInput = {
+  id?: number
+  status?: string
+  type?: string
+  reason?: string | null
+  startedAt?: Date | string
+  resolvedAt?: Date | string | null
+  createdAt?: Date | string
+  baselineLatencyMs?: number | null
+  monitorId: number
+}
+
+export type IncidentCreateOrConnectWithoutNotificationOutboxInput = {
+  where: Prisma.IncidentWhereUniqueInput
+  create: Prisma.XOR<Prisma.IncidentCreateWithoutNotificationOutboxInput, Prisma.IncidentUncheckedCreateWithoutNotificationOutboxInput>
+}
+
+export type IncidentUpsertWithoutNotificationOutboxInput = {
+  update: Prisma.XOR<Prisma.IncidentUpdateWithoutNotificationOutboxInput, Prisma.IncidentUncheckedUpdateWithoutNotificationOutboxInput>
+  create: Prisma.XOR<Prisma.IncidentCreateWithoutNotificationOutboxInput, Prisma.IncidentUncheckedCreateWithoutNotificationOutboxInput>
+  where?: Prisma.IncidentWhereInput
+}
+
+export type IncidentUpdateToOneWithWhereWithoutNotificationOutboxInput = {
+  where?: Prisma.IncidentWhereInput
+  data: Prisma.XOR<Prisma.IncidentUpdateWithoutNotificationOutboxInput, Prisma.IncidentUncheckedUpdateWithoutNotificationOutboxInput>
+}
+
+export type IncidentUpdateWithoutNotificationOutboxInput = {
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.StringFieldUpdateOperationsInput | string
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  resolvedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  baselineLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  monitor?: Prisma.MonitorUpdateOneRequiredWithoutIncidentsNestedInput
+}
+
+export type IncidentUncheckedUpdateWithoutNotificationOutboxInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.StringFieldUpdateOperationsInput | string
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  resolvedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  baselineLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  monitorId?: Prisma.IntFieldUpdateOperationsInput | number
+}
+
 export type IncidentCreateManyMonitorInput = {
   id?: number
   status?: string
@@ -585,6 +677,7 @@ export type IncidentUpdateWithoutMonitorInput = {
   resolvedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   baselineLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  notificationOutbox?: Prisma.NotificationOutboxUpdateManyWithoutIncidentNestedInput
 }
 
 export type IncidentUncheckedUpdateWithoutMonitorInput = {
@@ -596,6 +689,7 @@ export type IncidentUncheckedUpdateWithoutMonitorInput = {
   resolvedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   baselineLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  notificationOutbox?: Prisma.NotificationOutboxUncheckedUpdateManyWithoutIncidentNestedInput
 }
 
 export type IncidentUncheckedUpdateManyWithoutMonitorInput = {
@@ -610,6 +704,35 @@ export type IncidentUncheckedUpdateManyWithoutMonitorInput = {
 }
 
 
+/**
+ * Count Type IncidentCountOutputType
+ */
+
+export type IncidentCountOutputType = {
+  notificationOutbox: number
+}
+
+export type IncidentCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  notificationOutbox?: boolean | IncidentCountOutputTypeCountNotificationOutboxArgs
+}
+
+/**
+ * IncidentCountOutputType without action
+ */
+export type IncidentCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the IncidentCountOutputType
+   */
+  select?: Prisma.IncidentCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * IncidentCountOutputType without action
+ */
+export type IncidentCountOutputTypeCountNotificationOutboxArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.NotificationOutboxWhereInput
+}
+
 
 export type IncidentSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -622,6 +745,8 @@ export type IncidentSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   baselineLatencyMs?: boolean
   monitorId?: boolean
   monitor?: boolean | Prisma.MonitorDefaultArgs<ExtArgs>
+  notificationOutbox?: boolean | Prisma.Incident$notificationOutboxArgs<ExtArgs>
+  _count?: boolean | Prisma.IncidentCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["incident"]>
 
 export type IncidentSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -665,6 +790,8 @@ export type IncidentSelectScalar = {
 export type IncidentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "status" | "type" | "reason" | "startedAt" | "resolvedAt" | "createdAt" | "baselineLatencyMs" | "monitorId", ExtArgs["result"]["incident"]>
 export type IncidentInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   monitor?: boolean | Prisma.MonitorDefaultArgs<ExtArgs>
+  notificationOutbox?: boolean | Prisma.Incident$notificationOutboxArgs<ExtArgs>
+  _count?: boolean | Prisma.IncidentCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type IncidentIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   monitor?: boolean | Prisma.MonitorDefaultArgs<ExtArgs>
@@ -677,6 +804,7 @@ export type $IncidentPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
   name: "Incident"
   objects: {
     monitor: Prisma.$MonitorPayload<ExtArgs>
+    notificationOutbox: Prisma.$NotificationOutboxPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
@@ -1083,6 +1211,7 @@ readonly fields: IncidentFieldRefs;
 export interface Prisma__IncidentClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   monitor<T extends Prisma.MonitorDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.MonitorDefaultArgs<ExtArgs>>): Prisma.Prisma__MonitorClient<runtime.Types.Result.GetResult<Prisma.$MonitorPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  notificationOutbox<T extends Prisma.Incident$notificationOutboxArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Incident$notificationOutboxArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NotificationOutboxPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1519,6 +1648,30 @@ export type IncidentDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Inte
    * Limit how many Incidents to delete.
    */
   limit?: number
+}
+
+/**
+ * Incident.notificationOutbox
+ */
+export type Incident$notificationOutboxArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the NotificationOutbox
+   */
+  select?: Prisma.NotificationOutboxSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the NotificationOutbox
+   */
+  omit?: Prisma.NotificationOutboxOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.NotificationOutboxInclude<ExtArgs> | null
+  where?: Prisma.NotificationOutboxWhereInput
+  orderBy?: Prisma.NotificationOutboxOrderByWithRelationInput | Prisma.NotificationOutboxOrderByWithRelationInput[]
+  cursor?: Prisma.NotificationOutboxWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.NotificationOutboxScalarFieldEnum | Prisma.NotificationOutboxScalarFieldEnum[]
 }
 
 /**

@@ -1,6 +1,6 @@
 import { prisma } from "../lib/prisma.js";
 import { emitToUser } from "../lib/socket.js";
-import { triggerIncidentAlerts } from "./alert.service.js";
+import { createIncidentWithNotificationIntents } from "./incident.persistence.js";
 
 export async function detectPerformanceDegradation(
     monitorId: number,
@@ -30,8 +30,9 @@ export async function detectPerformanceDegradation(
         });
 
     if (ongoingIncident) {
-        const baselineLatency =
-            ongoingIncident.baselineLatencyMs;
+        const baselineLatency = ongoingIncident.baselineLatencyMs === null
+            ? null
+            : Math.max(1, ongoingIncident.baselineLatencyMs);
 
         if (baselineLatency === null) {
             return;
@@ -41,37 +42,33 @@ export async function detectPerformanceDegradation(
             currentCheck.latencyMs <
             baselineLatency * 2
         ) {
-            const resolvedIncident =
-                await prisma.incident.update({
-                    where: {
-                        id: ongoingIncident.id,
-                    },
-                    data: {
-                        status: "RESOLVED",
-                        resolvedAt: new Date(),
-                    },
-                    include: {
-                        monitor: {
-                            select: { userId: true },
-                        },
-                    },
-                });
-
-            emitToUser(resolvedIncident.monitor.userId, "incident:resolved", {
-                incidentId: resolvedIncident.id,
-                monitorId: resolvedIncident.monitorId,
-                type: resolvedIncident.type,
-                status: resolvedIncident.status,
-                resolvedAt: resolvedIncident.resolvedAt?.toISOString() ?? null,
+            const resolvedAt = new Date();
+            const transition = await prisma.incident.updateMany({
+                where: { id: ongoingIncident.id, status: "ONGOING" },
+                data: { status: "RESOLVED", resolvedAt },
             });
+            if (transition.count === 1) {
+                const resolvedIncident = await prisma.incident.findUnique({
+                    where: { id: ongoingIncident.id },
+                    include: { monitor: { select: { userId: true } } },
+                });
+                if (!resolvedIncident) return;
 
-            console.log(
-                `Realtime incident:resolved emitted for monitor: ${monitorId}`
-            );
-
-            console.log(
-                `Performance incident resolved for monitor: ${monitorId}`
-            );
+                try {
+                    emitToUser(resolvedIncident.monitor.userId, "incident:resolved", {
+                        incidentId: resolvedIncident.id,
+                        monitorId: resolvedIncident.monitorId,
+                        type: resolvedIncident.type,
+                        status: resolvedIncident.status,
+                        resolvedAt: resolvedIncident.resolvedAt?.toISOString() ?? null,
+                    });
+                } catch {
+                    console.error("Incident resolved event could not be published", {
+                        incidentId: resolvedIncident.id,
+                    });
+                }
+                console.log(`Performance incident resolved for monitor: ${monitorId}`);
+            }
         }
 
         return;
@@ -116,45 +113,32 @@ export async function detectPerformanceDegradation(
         currentCheck.latencyMs >=
             averageLatency * 2
     ) {
-        const incident =
-            await prisma.incident.create({
-                data: {
-                    monitorId,
-                    type: "PERFORMANCE",
-                    reason: `Latency increased to ${currentCheck.latencyMs}ms. Previous average was ${Math.round(
-                        averageLatency
-                    )}ms.`,
-                    baselineLatencyMs:
-                        Math.round(
-                            averageLatency
-                        ),
-                    startedAt:
-                        currentCheck.checkedAt,
-                },
-                include: {
-                    monitor: {
-                        select: { userId: true },
-                    },
-                },
-            });
-
-        await triggerIncidentAlerts(
-            incident.id
-        );
-
-        
-        emitToUser(incident.monitor.userId, "incident:created", {
-            incidentId: incident.id,
-            monitorId: incident.monitorId,
-            type: incident.type,
-            status: incident.status,
-            reason: incident.reason,
-            startedAt: incident.startedAt.toISOString(),
+        const { incident, created } = await createIncidentWithNotificationIntents({
+            monitorId,
+            type: "PERFORMANCE",
+            reason: `Latency increased to ${currentCheck.latencyMs}ms. Previous average was ${Math.round(
+                averageLatency
+            )}ms.`,
+            baselineLatencyMs: Math.max(1, Math.round(averageLatency)),
+            startedAt: currentCheck.checkedAt,
         });
 
-        console.log(
-            `Realtime incident:created emitted for monitor: ${monitorId}`
-        );
+        if (created) {
+            try {
+                emitToUser(incident.monitor.userId, "incident:created", {
+                    incidentId: incident.id,
+                    monitorId: incident.monitorId,
+                    type: incident.type,
+                    status: incident.status,
+                    reason: incident.reason,
+                    startedAt: incident.startedAt.toISOString(),
+                });
+            } catch {
+                console.error("Incident created event could not be published", {
+                    incidentId: incident.id,
+                });
+            }
+        }
 
         console.log(
             `Performance degradation detected for monitor: ${monitorId}`

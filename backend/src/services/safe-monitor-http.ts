@@ -7,6 +7,7 @@ import * as https from "node:https";
 
 const MAX_REDIRECTS = 5;
 const CONNECTION_TIMEOUT_MS = 5_000;
+const URL_VALIDATION_TIMEOUT_MS = 5_000;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
 const blockedIpv4 = new BlockList();
@@ -87,6 +88,7 @@ type SafeMonitorHttpDependencies = {
     requestPinned?: PinnedRequest;
     requestFactory?: RequestFactory;
     connectionTimeoutMs?: number;
+    validationTimeoutMs?: number;
 };
 
 export type SafeMonitorHttpTestDependencies = SafeMonitorHttpDependencies;
@@ -228,10 +230,21 @@ async function resolveAndValidate(
 
 export async function validateMonitorUrl(
     input: string,
-    dependencies: Pick<SafeMonitorHttpDependencies, "resolveHost"> = defaultDependencies,
+    dependencies: Pick<SafeMonitorHttpDependencies, "resolveHost" | "validationTimeoutMs"> = defaultDependencies,
 ): Promise<void> {
     const url = parseHttpUrl(input);
-    await resolveAndValidate(url, dependencies.resolveHost);
+    const validationTimeoutMs = dependencies.validationTimeoutMs ?? URL_VALIDATION_TIMEOUT_MS;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+        await Promise.race([
+            resolveAndValidate(url, dependencies.resolveHost),
+            new Promise<never>((_, reject) => {
+                timer = setTimeout(() => reject(new MonitorUrlPolicyError()), validationTimeoutMs);
+            }),
+        ]);
+    } finally {
+        if (timer) clearTimeout(timer);
+    }
 }
 
 export function assertMonitorUrlSyntax(input: string): void {

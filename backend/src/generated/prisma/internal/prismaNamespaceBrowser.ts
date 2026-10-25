@@ -55,6 +55,7 @@ export const ModelName = {
   Monitor: 'Monitor',
   MonitorCheck: 'MonitorCheck',
   Incident: 'Incident',
+  NotificationOutbox: 'NotificationOutbox',
   AlertRule: 'AlertRule'
 } as const
 
@@ -110,6 +111,7 @@ export const MonitorCheckScalarFieldEnum = {
   latencyMs: 'latencyMs',
   errorMessage: 'errorMessage',
   checkedAt: 'checkedAt',
+  scheduledOccurrenceId: 'scheduledOccurrenceId',
   monitorId: 'monitorId'
 } as const
 
@@ -129,6 +131,25 @@ export const IncidentScalarFieldEnum = {
 } as const
 
 export type IncidentScalarFieldEnum = (typeof IncidentScalarFieldEnum)[keyof typeof IncidentScalarFieldEnum]
+
+
+export const NotificationOutboxScalarFieldEnum = {
+  id: 'id',
+  dedupeKey: 'dedupeKey',
+  channel: 'channel',
+  destination: 'destination',
+  payload: 'payload',
+  status: 'status',
+  attempts: 'attempts',
+  nextAttemptAt: 'nextAttemptAt',
+  lockedUntil: 'lockedUntil',
+  lastErrorCode: 'lastErrorCode',
+  createdAt: 'createdAt',
+  sentAt: 'sentAt',
+  incidentId: 'incidentId'
+} as const
+
+export type NotificationOutboxScalarFieldEnum = (typeof NotificationOutboxScalarFieldEnum)[keyof typeof NotificationOutboxScalarFieldEnum]
 
 
 export const AlertRuleScalarFieldEnum = {
@@ -151,6 +172,13 @@ export const SortOrder = {
 export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder]
 
 
+export const JsonNullValueInput = {
+  JsonNull: JsonNull
+} as const
+
+export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
+
+
 export const QueryMode = {
   default: 'default',
   insensitive: 'insensitive'
@@ -165,4 +193,13 @@ export const NullsOrder = {
 } as const
 
 export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
+
+
+export const JsonNullValueFilter = {
+  DbNull: DbNull,
+  JsonNull: JsonNull,
+  AnyNull: AnyNull
+} as const
+
+export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter]
 

@@ -40,20 +40,24 @@ model Monitor {
 }
 
 model MonitorCheck {
-  id           Int      @id @default(autoincrement())
-  status       String
-  statusCode   Int?
-  latencyMs    Int?
-  errorMessage String?
-  checkedAt    DateTime @default(now())
+  id                     Int      @id @default(autoincrement())
+  status                 String
+  statusCode             Int?
+  latencyMs              Int?
+  errorMessage           String?
+  checkedAt              DateTime @default(now())
+  // Null for manual checks; non-null keys make scheduled checks idempotent.
+  scheduledOccurrenceId  String?
 
   monitorId Int
   monitor   Monitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
 
   @@index([monitorId, checkedAt])
+  @@unique([monitorId, scheduledOccurrenceId])
 }
 
 model Incident {
+  // The migration adds a PostgreSQL partial unique index for ONGOING rows.
   id         Int       @id @default(autoincrement())
   status     String    @default("ONGOING")
   type       String    @default("AVAILABILITY")
@@ -66,8 +70,30 @@ model Incident {
 
   monitorId Int
   monitor   Monitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  notificationOutbox NotificationOutbox[]
 
   @@index([monitorId, status])
+}
+
+model NotificationOutbox {
+  id            Int       @id @default(autoincrement())
+  dedupeKey     String    @unique
+  channel       String
+  destination   String
+  payload       Json
+  status        String    @default("PENDING")
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now())
+  lockedUntil   DateTime?
+  lastErrorCode String?
+  createdAt     DateTime  @default(now())
+  sentAt        DateTime?
+
+  incidentId Int?
+  incident   Incident? @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+
+  @@index([status, nextAttemptAt])
+  @@index([status, lockedUntil])
 }
 
 model AlertRule {

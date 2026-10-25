@@ -8,14 +8,16 @@ import { processIncident } from "./services/incident.service.js";
 import { detectPerformanceDegradation } from "./services/performance.service.js";
 import { investigationfunction } from "./services/investigation.service.js";
 
-describe("GET/health", ()=>{
-    it("should return a healty response", async()=>{
+describe("GET /health", ()=>{
+    it("should return a dependency readiness response", async()=>{
         const response = await request(app).get("/health");
 
-        expect(response.status).toBe(200);
-        expect(response.body.status).toBe("ok");
-        expect(response.body.database).toBe("connected");
-        expect(response.body.users).toBeTypeOf("number");
+        expect([200, 503]).toContain(response.status);
+        expect(["ready", "not_ready"]).toContain(response.body.status);
+        expect(response.body.dependencies).toMatchObject({
+            database: expect.stringMatching(/^(ok|unavailable|timeout)$/),
+            redis: expect.stringMatching(/^(ok|unavailable|timeout)$/),
+        });
     });
 });
 

@@ -30,8 +30,33 @@ export async function createMonitor(data: {
     return monitor;
 }
 
-export async function checkMonitor(
-    monitorId: number
+const inFlightMonitorChecks = new Map<string, Promise<unknown>>();
+
+function isPrismaUniqueConstraintError(error: unknown): boolean {
+    return typeof error === "object" && error !== null &&
+        "code" in error && error.code === "P2002";
+}
+
+/** Share an in-process check when a manual request and queued job overlap. */
+export function checkMonitor(monitorId: number, scheduledOccurrenceId?: string) {
+    const checkKey = scheduledOccurrenceId === undefined
+        ? `${monitorId}:manual`
+        : `${monitorId}:scheduled:${scheduledOccurrenceId}`;
+    const existing = inFlightMonitorChecks.get(checkKey);
+    if (existing) return existing;
+
+    const execution = runMonitorCheck(monitorId, scheduledOccurrenceId).finally(() => {
+        if (inFlightMonitorChecks.get(checkKey) === execution) {
+            inFlightMonitorChecks.delete(checkKey);
+        }
+    });
+    inFlightMonitorChecks.set(checkKey, execution);
+    return execution;
+}
+
+async function runMonitorCheck(
+    monitorId: number,
+    scheduledOccurrenceId?: string,
 ) {
     const monitor = await prisma.monitor.findUnique({
         where: {
@@ -44,6 +69,28 @@ export async function checkMonitor(
             "Monitor not found",
             404
         );
+    }
+
+    if (scheduledOccurrenceId !== undefined) {
+        const recordedOccurrence = await prisma.monitorCheck.findUnique({
+            where: {
+                monitorId_scheduledOccurrenceId: {
+                    monitorId,
+                    scheduledOccurrenceId,
+                },
+            },
+        });
+        if (recordedOccurrence) {
+            const latestCheck = await prisma.monitorCheck.findFirst({
+                where: { monitorId },
+                orderBy: [{ checkedAt: "desc" }, { id: "desc" }],
+                select: { id: true },
+            });
+            if (latestCheck?.id === recordedOccurrence.id) {
+                await processCheckConsequences(monitor, recordedOccurrence, true);
+            }
+            return recordedOccurrence;
+        }
     }
 
     const startTime = Date.now();
@@ -83,50 +130,113 @@ export async function checkMonitor(
         errorMessage = "Monitor check failed";
     }
 
-    const check = await prisma.monitorCheck.create({
-        data: {
+    let check;
+    try {
+        check = await prisma.monitorCheck.create({
+            data: {
+                monitorId: monitor.id,
+                status,
+                statusCode,
+                latencyMs,
+                errorMessage,
+                ...(scheduledOccurrenceId === undefined ? {} : { scheduledOccurrenceId }),
+            },
+        });
+    } catch (error) {
+        if (!scheduledOccurrenceId || !isPrismaUniqueConstraintError(error)) throw error;
+
+        // A concurrent worker may have committed this occurrence while this
+        // process was performing the HTTP request. Reuse its durable result.
+        const recordedOccurrence = await prisma.monitorCheck.findUnique({
+            where: {
+                monitorId_scheduledOccurrenceId: {
+                    monitorId: monitor.id,
+                    scheduledOccurrenceId,
+                },
+            },
+        });
+        if (!recordedOccurrence) throw error;
+        const latestCheck = await prisma.monitorCheck.findFirst({
+            where: { monitorId },
+            orderBy: [{ checkedAt: "desc" }, { id: "desc" }],
+            select: { id: true },
+        });
+        if (latestCheck?.id === recordedOccurrence.id) {
+            await processCheckConsequences(monitor, recordedOccurrence, true);
+        }
+        return recordedOccurrence;
+    }
+
+    let monitorUpdatePublished = false;
+    try {
+        emitToUser(monitor.userId, "monitor:updated", {
             monitorId: monitor.id,
-            status,
-            statusCode,
-            latencyMs,
-            errorMessage,
-        },
-    });
+            check: {
+                status: check.status,
+                statusCode: check.statusCode,
+                latencyMs: check.latencyMs,
+                errorMessage: check.errorMessage,
+                checkedAt: check.checkedAt.toISOString(),
+            },
+        });
+        monitorUpdatePublished = true;
+    } catch {
+        console.error("Monitor update event could not be published", {
+            monitorId: monitor.id,
+        });
+    }
 
-    emitToUser(monitor.userId, "monitor:updated", {
-        monitorId: monitor.id,
-        check: {
-            status: check.status,
-            statusCode: check.statusCode,
-            latencyMs: check.latencyMs,
-            errorMessage: check.errorMessage,
-            checkedAt: check.checkedAt.toISOString(),
-        },
-    });
+    if (monitorUpdatePublished) {
+        console.log(`Realtime update emitted for monitor: ${monitor.name}`);
+    }
 
-    console.log(`Realtime update emitted for monitor: ${monitor.name}`);
-
-    await processIncident(monitor.id);
-
-    await detectPerformanceDegradation(
-        monitor.id,
-        check
-    );
+    await processCheckConsequences(monitor, check, scheduledOccurrenceId !== undefined);
 
     return check;
 }
 
+async function processCheckConsequences(
+    monitor: { id: number },
+    check: { id: number; status: string; latencyMs: number | null; checkedAt: Date },
+    retryOnFailure: boolean,
+) {
+    try {
+        await processIncident(monitor.id);
+    } catch (error) {
+        console.error("Availability incident processing failed after check was saved", {
+            monitorId: monitor.id,
+        });
+        if (retryOnFailure) throw error;
+    }
+
+    try {
+        await detectPerformanceDegradation(monitor.id, check);
+    } catch (error) {
+        console.error("Performance incident processing failed after check was saved", {
+            monitorId: monitor.id,
+        });
+        if (retryOnFailure) throw error;
+    }
+}
+
 export async function getUserMonitors(
-    userId: number
+    userId: number,
+    pagination?: { limit: number; afterId?: number },
 ) {
     const monitors = await prisma.monitor.findMany({
         where: {
             userId,
         },
 
-        orderBy: {
-            createdAt: "desc",
-        },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+
+        ...(pagination === undefined ? {} : {
+            take: pagination.limit + 1,
+            ...(pagination.afterId === undefined ? {} : {
+                cursor: { id: pagination.afterId },
+                skip: 1,
+            }),
+        }),
 
         include: {
             checks: {

@@ -44,7 +44,7 @@ export async function investigationfunction(
 
         const baselineLatency = incident.baselineLatencyMs;
 
-        if(baselineLatency !== null && firstIncidentCheck?.latencyMs !==null && firstIncidentCheck?.latencyMs !== undefined){
+        if(baselineLatency !== null && baselineLatency > 0 && firstIncidentCheck?.latencyMs !==null && firstIncidentCheck?.latencyMs !== undefined){
             const increasePercent = Math.round(((firstIncidentCheck.latencyMs - baselineLatency)/ baselineLatency)*100);
 
             return {

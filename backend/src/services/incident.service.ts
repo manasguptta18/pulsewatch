@@ -1,15 +1,13 @@
 import {prisma} from "../lib/prisma.js";
-import { triggerIncidentAlerts } from "./alert.service.js";
 import { emitToUser } from "../lib/socket.js";
+import { createIncidentWithNotificationIntents } from "./incident.persistence.js";
 
 export async function processIncident(monitorId: number){
     const recentChecks = await prisma.monitorCheck.findMany({
         where:{
             monitorId,
         },
-        orderBy:{
-            checkedAt: "desc",
-        },
+        orderBy: [{ checkedAt: "desc" }, { id: "desc" }],
         take: 3,
     });
 
@@ -26,34 +24,31 @@ export async function processIncident(monitorId: number){
             }); 
 
             if(!ongoingIncident){
-                const incident  = await prisma.incident.create({
-                    data:{
-                        monitorId,
-                        type: "AVAILABILITY",
-                        reason: "3 consecutive monitor checks failed",
-                    },
-                    include: {
-                        monitor: {
-                            select: { userId: true },
-                        },
-                    },
+                const { incident, created } = await createIncidentWithNotificationIntents({
+                    monitorId,
+                    type: "AVAILABILITY",
+                    reason: "3 consecutive monitor checks failed",
                 });
                 
-                await triggerIncidentAlerts(incident.id);
-                emitToUser(incident.monitor.userId, "incident:created", {
-                    incidentId: incident.id,
-                    monitorId: incident.monitorId,
-                    type: incident.type,
-                    status: incident.status,
-                    reason: incident.reason,
-                    startedAt: incident.startedAt.toISOString(),
-                });
-                console.log(
-                    `Realtime incident:created emitted for monitor: ${monitorId}`
-                );
-                console.log(
-                    `Availability incident created for monitor: ${monitorId}`
-                );
+                if (created) {
+                    try {
+                        emitToUser(incident.monitor.userId, "incident:created", {
+                            incidentId: incident.id,
+                            monitorId: incident.monitorId,
+                            type: incident.type,
+                            status: incident.status,
+                            reason: incident.reason,
+                            startedAt: incident.startedAt.toISOString(),
+                        });
+                    } catch {
+                        console.error("Incident created event could not be published", {
+                            incidentId: incident.id,
+                        });
+                    }
+                }
+                if (created) {
+                    console.log(`Availability incident created for monitor: ${monitorId}`);
+                }
             }
         }
     }
@@ -69,36 +64,37 @@ export async function processIncident(monitorId: number){
         });
 
         if(ongoingIncident){
-            const resolvedIncident = await prisma.incident.update({
-                where:{
-                    id : ongoingIncident.id,
-                },
-                data:{
-                    status: "RESOLVED",
-                    resolvedAt: new Date(),
-                },
-                include: {
-                    monitor: {
-                        select: { userId: true },
-                    },
-                },
+            const resolvedAt = new Date();
+            const transition = await prisma.incident.updateMany({
+                where: { id: ongoingIncident.id, status: "ONGOING" },
+                data: { status: "RESOLVED", resolvedAt },
             });
 
-            emitToUser(resolvedIncident.monitor.userId, "incident:resolved", {
-                incidentId: resolvedIncident.id,
-                monitorId: resolvedIncident.monitorId,
-                type: resolvedIncident.type,
-                status: resolvedIncident.status,
-                resolvedAt: resolvedIncident.resolvedAt?.toISOString() ?? null,
-            });
+            if (transition.count === 1) {
+                const resolvedIncident = await prisma.incident.findUnique({
+                    where: { id: ongoingIncident.id },
+                    include: { monitor: { select: { userId: true } } },
+                });
+                if (resolvedIncident) {
+                    try {
+                        emitToUser(resolvedIncident.monitor.userId, "incident:resolved", {
+                            incidentId: resolvedIncident.id,
+                            monitorId: resolvedIncident.monitorId,
+                            type: resolvedIncident.type,
+                            status: resolvedIncident.status,
+                            resolvedAt: resolvedIncident.resolvedAt?.toISOString() ?? null,
+                        });
+                    } catch {
+                        console.error("Incident resolved event could not be published", {
+                            incidentId: resolvedIncident.id,
+                        });
+                    }
+                }
+            }
 
-            console.log(
-                `Realtime incident:resolved emitted for monitor: ${monitorId}`
-            );
-
-            console.log(
-                `Availability incident resolved for monitor: ${monitorId}`
-            );
+            if (transition.count === 1) {
+                console.log(`Availability incident resolved for monitor: ${monitorId}`);
+            }
         }
     }
 }

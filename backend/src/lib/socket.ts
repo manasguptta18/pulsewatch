@@ -1,8 +1,12 @@
 import type {Server as HttpServer} from "node:http";
 import jwt from "jsonwebtoken";
+import {createAdapter} from "@socket.io/redis-adapter";
 import {Server, type Socket} from "socket.io";
+import {closeRedisClient, getRedisConnection} from "./redis.js";
+import { getAllowedFrontendOrigins } from "./runtime-env.js";
 
 let io: Server | null = null;
+let socketAdapterSubscriber: ReturnType<typeof getRedisConnection> | undefined;
 
 export function userRoomId(userId: number) {
     return `user:${userId}`;
@@ -29,7 +33,9 @@ export function createSocketAuthMiddleware(jwtSecret = process.env.JWT_SECRET) {
         }
 
         try {
-            const decoded = jwt.verify(token, jwtSecret);
+            const decoded = jwt.verify(token, jwtSecret, {
+                algorithms: ["HS256"],
+            });
             if (
                 typeof decoded !== "object" ||
                 decoded === null ||
@@ -48,8 +54,20 @@ export function createSocketAuthMiddleware(jwtSecret = process.env.JWT_SECRET) {
     };
 }
 
-type UserEvent = "incident:created" | "incident:resolved" | "monitor:updated";
+export type UserEvent = "incident:created" | "incident:resolved" | "monitor:updated";
 type RoomTarget = Pick<Server, "to">;
+type SocketEventPublisher = (
+    room: string,
+    event: UserEvent,
+    payload: Record<string, unknown>,
+) => void;
+
+let processEventPublisher: SocketEventPublisher | null = null;
+
+/** Configure a process-local publisher, used by workers without a Socket.IO server. */
+export function setSocketEventPublisher(publisher: SocketEventPublisher | null) {
+    processEventPublisher = publisher;
+}
 
 export function emitToUser(
     userId: number,
@@ -57,15 +75,29 @@ export function emitToUser(
     payload: Record<string, unknown>,
     socketServer: RoomTarget | null = io,
 ) {
-    socketServer?.to(userRoomId(userId)).emit(event, payload);
+    const room = userRoomId(userId);
+    if (socketServer) {
+        socketServer.to(room).emit(event, payload);
+        return;
+    }
+
+    processEventPublisher?.(room, event, payload);
 }
 
 export function initializeSocket(httpServer: HttpServer){
+    const publisher = getRedisConnection();
+    const subscriber = publisher.duplicate();
+    socketAdapterSubscriber = subscriber;
+
     io = new Server(httpServer,{
         cors: {
-            origin: "http://localhost:5173",
+            origin: getAllowedFrontendOrigins(),
         },
     });
+
+    // The adapter forwards room-targeted events between API processes. Workers
+    // publish to the same Redis channels through @socket.io/redis-emitter.
+    io.adapter(createAdapter(publisher, subscriber));
 
     io.use(createSocketAuthMiddleware());
 
@@ -83,6 +115,15 @@ export function initializeSocket(httpServer: HttpServer){
         });
     });
     return io;
+}
+
+/** Close only the API process's Socket.IO Redis subscriber. */
+export async function closeSocketAdapter(): Promise<void> {
+    if (!socketAdapterSubscriber) return;
+
+    const subscriber = socketAdapterSubscriber;
+    socketAdapterSubscriber = undefined;
+    await closeRedisClient(subscriber);
 }
 
 export function getIO(){

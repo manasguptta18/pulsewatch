@@ -6,45 +6,34 @@ import monitorRoutes from "./routes/monitor.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import incidentRoutes from "./routes/incident.routes.js";
 import authRoutes from "./routes/auth.routes.js";
-import { errorMiddleware } from "./middleware/error.middleware.js";
+import { createHealthRouter } from "./routes/health.routes.js";
+import { errorMiddleware, notFoundMiddleware } from "./middleware/error.middleware.js";
+import { getRedisConnection } from "./lib/redis.js";
+import { getAllowedFrontendOrigins, parseTrustedProxyHops } from "./lib/runtime-env.js";
 
 const app = express();
+const trustedProxyHops = parseTrustedProxyHops(process.env.TRUST_PROXY_HOPS);
+if (trustedProxyHops > 0) app.set("trust proxy", trustedProxyHops);
 
 app.use(
     cors({
-        origin: "http://localhost:5173",
+        origin: getAllowedFrontendOrigins(),
     })
 );
 
-app.use(express.json());
+app.use(express.json({ limit: "32kb" }));
 
-app.get("/health", async (req, res) => {
-    const userCount = await prisma.user.count();
-
-    res.json({
-        status: "ok",
-        database: "connected",
-        users: userCount,
-    });
-});
+app.use("/health", createHealthRouter({
+    database: () => prisma.$queryRaw`SELECT 1`,
+    redis: () => getRedisConnection().ping(),
+}));
 
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/monitors", monitorRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/incidents", incidentRoutes);
 
-app.get("/api/v1/test/slow", async (req, res) => {
-    const delay = Number(req.query.delay ?? 100);
-
-    await new Promise((resolve) =>
-        setTimeout(resolve, delay)
-    );
-
-    res.json({
-        message: `Response delayed by ${delay}ms`,
-    });
-});
-
+app.use(notFoundMiddleware);
 app.use(errorMiddleware);
 
 export { app };

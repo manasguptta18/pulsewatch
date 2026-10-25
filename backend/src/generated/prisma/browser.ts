@@ -38,6 +38,11 @@ export type MonitorCheck = Prisma.MonitorCheckModel
  */
 export type Incident = Prisma.IncidentModel
 /**
+ * Model NotificationOutbox
+ *
+ */
+export type NotificationOutbox = Prisma.NotificationOutboxModel
+/**
  * Model AlertRule
  * 
  */
