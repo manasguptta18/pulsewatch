@@ -4,7 +4,11 @@ let socket : Socket | null = null;
 
 export function connectSocket(){
     if(!socket){
-        socket = io("http://localhost:3000");
+        socket = io("http://localhost:3000", {
+            auth: {
+                token: localStorage.getItem("token"),
+            },
+        });
     }
 
     return socket;

@@ -1,5 +1,5 @@
 import { prisma } from "../lib/prisma.js";
-import { getIO } from "../lib/socket.js";
+import { emitToUser } from "../lib/socket.js";
 import { processIncident } from "./incident.service.js";
 import { detectPerformanceDegradation } from "./performance.service.js";
 import { AppError } from "../errors/app-error.js";
@@ -93,26 +93,18 @@ export async function checkMonitor(
         },
     });
 
-    const io = getIO();
+    emitToUser(monitor.userId, "monitor:updated", {
+        monitorId: monitor.id,
+        check: {
+            status: check.status,
+            statusCode: check.statusCode,
+            latencyMs: check.latencyMs,
+            errorMessage: check.errorMessage,
+            checkedAt: check.checkedAt.toISOString(),
+        },
+    });
 
-    if (io) {
-        io.emit("monitor:updated", {
-            monitorId: monitor.id,
-
-            check: {
-                status: check.status,
-                statusCode: check.statusCode,
-                latencyMs: check.latencyMs,
-                errorMessage: check.errorMessage,
-                checkedAt:
-                    check.checkedAt.toISOString(),
-            },
-        });
-
-        console.log(
-            `Realtime update emitted for monitor: ${monitor.name}`
-        );
-    }
+    console.log(`Realtime update emitted for monitor: ${monitor.name}`);
 
     await processIncident(monitor.id);
 

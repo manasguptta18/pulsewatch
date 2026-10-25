@@ -1,6 +1,6 @@
 import {prisma} from "../lib/prisma.js";
 import { triggerIncidentAlerts } from "./alert.service.js";
-import { getIO } from "../lib/socket.js";
+import { emitToUser } from "../lib/socket.js";
 
 export async function processIncident(monitorId: number){
     const recentChecks = await prisma.monitorCheck.findMany({
@@ -32,25 +32,25 @@ export async function processIncident(monitorId: number){
                         type: "AVAILABILITY",
                         reason: "3 consecutive monitor checks failed",
                     },
+                    include: {
+                        monitor: {
+                            select: { userId: true },
+                        },
+                    },
                 });
                 
                 await triggerIncidentAlerts(incident.id);
-                const io = getIO();
-
-                if(io){
-                    io.emit("incident:created",{
-                        incidentId: incident.id,
-                        monitorId: incident.monitorId,
-                        type: incident.type,
-                        status: incident.status,
-                        reason: incident.reason,
-                        startedAt:
-                            incident.startedAt.toISOString(),
-                    });
-                    console.log(
-                        `Realtime incident:created emitted for monitor: ${monitorId}`
-                    );
-                }
+                emitToUser(incident.monitor.userId, "incident:created", {
+                    incidentId: incident.id,
+                    monitorId: incident.monitorId,
+                    type: incident.type,
+                    status: incident.status,
+                    reason: incident.reason,
+                    startedAt: incident.startedAt.toISOString(),
+                });
+                console.log(
+                    `Realtime incident:created emitted for monitor: ${monitorId}`
+                );
                 console.log(
                     `Availability incident created for monitor: ${monitorId}`
                 );
@@ -77,28 +77,24 @@ export async function processIncident(monitorId: number){
                     status: "RESOLVED",
                     resolvedAt: new Date(),
                 },
+                include: {
+                    monitor: {
+                        select: { userId: true },
+                    },
+                },
             });
 
-            const io = getIO();
-             if (io) {
-                io.emit("incident:resolved", {
-                    incidentId:
-                        resolvedIncident.id,
-                    monitorId:
-                        resolvedIncident.monitorId,
-                    type:
-                        resolvedIncident.type,
-                    status:
-                        resolvedIncident.status,
-                    resolvedAt:
-                        resolvedIncident.resolvedAt
-                            ?.toISOString() ?? null,
-                });
+            emitToUser(resolvedIncident.monitor.userId, "incident:resolved", {
+                incidentId: resolvedIncident.id,
+                monitorId: resolvedIncident.monitorId,
+                type: resolvedIncident.type,
+                status: resolvedIncident.status,
+                resolvedAt: resolvedIncident.resolvedAt?.toISOString() ?? null,
+            });
 
-                console.log(
-                    `Realtime incident:resolved emitted for monitor: ${monitorId}`
-                );
-            }
+            console.log(
+                `Realtime incident:resolved emitted for monitor: ${monitorId}`
+            );
 
             console.log(
                 `Availability incident resolved for monitor: ${monitorId}`

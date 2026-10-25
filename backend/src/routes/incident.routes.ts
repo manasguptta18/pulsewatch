@@ -16,7 +16,10 @@ router.get("/:id/ai-summary", authMiddleware,async (req,res,next)=>{
             });
         }
 
-        const investigation = await investigationfunction(incidentId);
+        const investigation = await investigationfunction(
+            incidentId,
+            req.userId!,
+        );
 
         const aiSummary = await generateIncidentSummary(investigation);
 

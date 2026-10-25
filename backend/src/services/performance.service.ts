@@ -1,5 +1,5 @@
 import { prisma } from "../lib/prisma.js";
-import { getIO } from "../lib/socket.js";
+import { emitToUser } from "../lib/socket.js";
 import { triggerIncidentAlerts } from "./alert.service.js";
 
 export async function detectPerformanceDegradation(
@@ -50,30 +50,24 @@ export async function detectPerformanceDegradation(
                         status: "RESOLVED",
                         resolvedAt: new Date(),
                     },
+                    include: {
+                        monitor: {
+                            select: { userId: true },
+                        },
+                    },
                 });
 
-           
-            const io = getIO();
+            emitToUser(resolvedIncident.monitor.userId, "incident:resolved", {
+                incidentId: resolvedIncident.id,
+                monitorId: resolvedIncident.monitorId,
+                type: resolvedIncident.type,
+                status: resolvedIncident.status,
+                resolvedAt: resolvedIncident.resolvedAt?.toISOString() ?? null,
+            });
 
-            if (io) {
-                io.emit("incident:resolved", {
-                    incidentId:
-                        resolvedIncident.id,
-                    monitorId:
-                        resolvedIncident.monitorId,
-                    type:
-                        resolvedIncident.type,
-                    status:
-                        resolvedIncident.status,
-                    resolvedAt:
-                        resolvedIncident.resolvedAt
-                            ?.toISOString() ?? null,
-                });
-
-                console.log(
-                    `Realtime incident:resolved emitted for monitor: ${monitorId}`
-                );
-            }
+            console.log(
+                `Realtime incident:resolved emitted for monitor: ${monitorId}`
+            );
 
             console.log(
                 `Performance incident resolved for monitor: ${monitorId}`
@@ -137,6 +131,11 @@ export async function detectPerformanceDegradation(
                     startedAt:
                         currentCheck.checkedAt,
                 },
+                include: {
+                    monitor: {
+                        select: { userId: true },
+                    },
+                },
             });
 
         await triggerIncidentAlerts(
@@ -144,23 +143,18 @@ export async function detectPerformanceDegradation(
         );
 
         
-        const io = getIO();
+        emitToUser(incident.monitor.userId, "incident:created", {
+            incidentId: incident.id,
+            monitorId: incident.monitorId,
+            type: incident.type,
+            status: incident.status,
+            reason: incident.reason,
+            startedAt: incident.startedAt.toISOString(),
+        });
 
-        if (io) {
-            io.emit("incident:created", {
-                incidentId: incident.id,
-                monitorId: incident.monitorId,
-                type: incident.type,
-                status: incident.status,
-                reason: incident.reason,
-                startedAt:
-                    incident.startedAt.toISOString(),
-            });
-
-            console.log(
-                `Realtime incident:created emitted for monitor: ${monitorId}`
-            );
-        }
+        console.log(
+            `Realtime incident:created emitted for monitor: ${monitorId}`
+        );
 
         console.log(
             `Performance degradation detected for monitor: ${monitorId}`

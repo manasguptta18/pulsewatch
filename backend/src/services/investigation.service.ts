@@ -1,12 +1,20 @@
 import {prisma} from "../lib/prisma.js";
 import { AppError } from "../errors/app-error.js";
 
-export async function investigationfunction(incidentId: number){
-    const incident = await prisma.incident.findUnique({
-        where:{
+export async function investigationfunction(
+    incidentId: number,
+    userId: number,
+) {
+    const incident = await prisma.incident.findFirst({
+        where: {
             id: incidentId,
+            monitor: {
+                is: {
+                    userId,
+                },
+            },
         },
-        include:{
+        include: {
             monitor: true,
         },
     });

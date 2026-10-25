@@ -1049,7 +1049,7 @@ describe("investigationfunction", () => {
             });
 
             const result =
-                await investigationfunction(incident.id);
+                await investigationfunction(incident.id, monitor.userId);
 
             expect(result.incidentId).toBe(
                 incident.id
@@ -1149,7 +1149,7 @@ describe("investigationfunction", () => {
             });
 
             const result =
-                await investigationfunction(incident.id);
+                await investigationfunction(incident.id, monitor.userId);
 
             expect(result.incidentId).toBe(
                 incident.id
@@ -1188,7 +1188,7 @@ describe("investigationfunction", () => {
     });
     it("should throw an error when the incident does not exist", async () => {
     await expect(
-        investigationfunction(999999)
+        investigationfunction(999999, 3)
     ).rejects.toThrow("Incident not found");
 });
 });
