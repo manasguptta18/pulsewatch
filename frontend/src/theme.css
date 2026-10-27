@@ -1,0 +1,210 @@
+:root {
+    --page-bg: #f5f7fa;
+    --heading: #172033;
+    --divider: #edf1f5;
+    --chart-grid: #e2e8f0;
+    --chart-tooltip-bg: #ffffff;
+    --chart-tooltip-text: #1e293b;
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    color: #e8eef8;
+    background: #0b1220;
+    --page-bg: #0b1220;
+    --surface: #131f31;
+    --surface-soft: #19283d;
+    --border: #2b3a50;
+    --border-strong: #42546d;
+    --divider: #2b3a50;
+    --text: #e8eef8;
+    --heading: #f3f6fc;
+    --muted: #aebdd0;
+    --subtle: #91a3ba;
+    --primary: #9ab4ff;
+    --primary-hover: #b5c7ff;
+    --primary-soft: #213557;
+    --green: #6ee7b7;
+    --green-bg: #143b30;
+    --red: #ffaaa9;
+    --red-bg: #46292e;
+    --amber: #f5ca75;
+    --amber-bg: #43351e;
+    --shadow-sm: 0 1px 3px rgb(0 0 0 / 20%);
+    --chart-grid: #3b4c63;
+    --chart-tooltip-bg: #1b2a3f;
+    --chart-tooltip-text: #f3f6fc;
+}
+
+.password-form { display: grid; justify-items: start; gap: 2px; max-width: 520px; margin: 18px 0 24px; }
+.password-form .form-field { width: 100%; }
+.password-form .secondary-button { min-height: 38px; }
+.app-shell .password-feedback { margin: 9px 0 0; font-size: 11px; }
+.app-shell .password-feedback.error { color: var(--red); }
+.app-shell .password-feedback.success { color: var(--green); }
+
+html[data-theme="dark"] body,
+html[data-theme="dark"] .route-loading,
+html[data-theme="dark"] .app-shell,
+html[data-theme="dark"] body .login-page {
+    background: var(--page-bg);
+    color: var(--text);
+}
+html[data-theme="dark"] :is(button, a, input, select, textarea):focus-visible {
+    outline: 3px solid #b5c7ff;
+    outline-offset: 2px;
+}
+
+html[data-theme="dark"] .app-sidebar,
+html[data-theme="dark"] .app-topbar,
+html[data-theme="dark"] .app-shell :is(
+    .overview-row > div, .monitor-summary .summary-item,
+    .monitors-section, .analysis-panel, .incidents-panel, .status-panel,
+    .monitor-list-section, .response-panel, .configuration-panel,
+    .history-panel, .incident-history-panel, .settings-panel,
+    .monitor-card, .monitor-form-panel, .monitor-edit-form,
+    .detail-metric, .details-error, .settings-menu,
+    .monitor-table, .checks-table, .incident-item, .monitor-open,
+    .form-close, .secondary-action, .secondary-button, .back-button,
+    .view-incidents-button, .text-button, .live-incident-banner
+) {
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--border);
+}
+html[data-theme="dark"] .app-topbar { background: rgb(19 31 49 / 96%); }
+html[data-theme="dark"] .app-brand,
+html[data-theme="dark"] .app-shell :is(h1, h2, h3, strong),
+html[data-theme="dark"] .app-shell .monitor-card-title,
+html[data-theme="dark"] .app-shell .monitor-name-link,
+html[data-theme="dark"] .app-shell .configuration-list strong,
+html[data-theme="dark"] .app-shell .chart-footer strong {
+    color: var(--heading);
+}
+html[data-theme="dark"] .app-shell :is(p, small, label),
+html[data-theme="dark"] .app-shell :is(
+    .section-heading p, .list-heading p, .panel-heading p,
+    .no-incidents span, .system-status span, .live-incident-content span,
+    .live-incident-content small, .monitor-name-cell > span,
+    .password-section p, .theme-section p, .settings-note
+) { color: var(--muted); }
+html[data-theme="dark"] .app-shell :is(
+    .app-nav-link, .app-nav-icon, .app-top-user, .app-realtime,
+    .metric-label, .monitor-url, .monitor-card-metrics,
+    .monitor-row, .check-row, .url-cell, .latency-cell, .checked-cell,
+    .chart-period, .chart-legend, .legend-item, .analysis-labels,
+    .system-stat, .monitor-card-metrics, .detail-metric span,
+    .detail-metric small, .chart-footer span, .configuration-list span,
+    .history-incident-main p, .history-incident-main small,
+    .incident-item-main span, .incident-item-main small,
+    .settings-menu-item, .settings-breadcrumb, .placeholder-section p,
+    .table-message, .chart-empty, .checks-empty, .empty-state
+) {
+    color: var(--muted);
+}
+html[data-theme="dark"] .app-nav-link:hover,
+html[data-theme="dark"] .app-shell :is(
+    .settings-menu-item:hover, .monitor-row:hover, .monitor-card:hover,
+    .incident-item:hover, .row-action:hover, .secondary-button:hover,
+    .secondary-action:hover, .monitor-open:hover
+) {
+    background: var(--surface-soft);
+    color: var(--text);
+}
+html[data-theme="dark"] .app-nav-link.active,
+html[data-theme="dark"] .app-shell .settings-menu-item.active {
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+html[data-theme="dark"] :is(.app-brand-mark, .app-avatar) {
+    background: #365fcf; color: #fff; border-color: #5279df;
+}
+html[data-theme="dark"] :is(.app-nav-count, .app-shell .incident-counter, .app-shell .live-incident-icon) {
+    background: var(--red-bg); color: var(--red);
+}
+html[data-theme="dark"] .app-shell :is(
+    .table-header, .checks-header, .monitors-search, .theme-options,
+    .placeholder-icon, .no-incidents, .investigation-result,
+    .panel-note, .live-label
+) {
+    background: var(--surface-soft);
+    color: var(--muted);
+    border-color: var(--border);
+}
+html[data-theme="dark"] .app-shell :is(input, select, textarea) {
+    background: var(--surface-soft);
+    color: var(--text);
+    border-color: var(--border-strong);
+}
+html[data-theme="dark"] .app-shell input::placeholder { color: var(--subtle); }
+html[data-theme="dark"] .app-shell .monitors-search input { background: transparent; }
+html[data-theme="dark"] .app-shell .monitors-search:focus-within { background: var(--surface); }
+html[data-theme="dark"] .app-shell .theme-option.active { background: var(--surface); color: var(--primary); }
+html[data-theme="dark"] .app-shell .theme-option:hover { background: var(--surface-soft); color: var(--text); }
+html[data-theme="dark"] .app-shell .investigate-button {
+    background: var(--primary-soft); color: var(--primary); border-color: var(--border-strong);
+}
+html[data-theme="dark"] .app-shell .investigate-button:hover:not(:disabled) {
+    background: var(--surface-soft); border-color: var(--primary);
+}
+html[data-theme="dark"] .app-shell :is(
+    .monitor-row, .check-row, .incident-item, .history-incident,
+    .configuration-list > div, .chart-footer, .analysis-labels,
+    .password-section, .theme-section, .system-stat
+) { border-color: var(--divider); }
+html[data-theme="dark"] .app-shell .status-divider { background: var(--divider); }
+html[data-theme="dark"] .app-shell :is(.app-sidebar-bottom, .app-user-card) { border-color: var(--divider); }
+
+html[data-theme="dark"] .app-shell :is(
+    .status-pill.up, .status-badge.up, .check-status.up, .history-status.resolved
+) { background: var(--green-bg); color: var(--green); border-color: #28664e; }
+html[data-theme="dark"] .app-shell :is(
+    .status-pill.down, .status-badge.down, .check-status.down, .history-status.ongoing
+) { background: var(--red-bg); color: var(--red); border-color: #81414b; }
+html[data-theme="dark"] .app-shell :is(.status-pill.degraded, .status-badge.degraded, .check-status.degraded) {
+    background: var(--amber-bg); color: var(--amber); border-color: #806238;
+}
+html[data-theme="dark"] .app-shell :is(.status-pill.unknown, .status-badge.unknown, .check-status.unknown) {
+    background: var(--surface-soft); color: var(--muted); border-color: var(--border);
+}
+html[data-theme="dark"] .app-shell :is(
+    .dashboard-error, .page-error, .details-error-banner, .live-incident-banner.incident-created
+) { background: var(--red-bg); color: var(--red); border-color: #81414b; }
+html[data-theme="dark"] .app-shell .live-incident-banner.incident-resolved {
+    background: var(--green-bg); border-color: #28664e;
+}
+html[data-theme="dark"] .app-shell :is(.dashboard-error button, .page-error button) {
+    background: var(--surface); color: var(--red); border-color: #81414b;
+}
+html[data-theme="dark"] .app-shell .active-incident-panel {
+    background: var(--amber-bg); border-color: #806238;
+}
+html[data-theme="dark"] .app-shell .active-incident-panel :is(strong, span, p, small) { color: var(--amber); }
+html[data-theme="dark"] .app-shell .incident-symbol { background: #5a4628; color: var(--amber); }
+html[data-theme="dark"] .app-shell .danger-section { background: var(--red-bg); border-color: #81414b; }
+html[data-theme="dark"] .app-shell .danger-section :is(h2, p) { color: var(--red); }
+html[data-theme="dark"] .app-shell :is(.danger-action, .danger-button) {
+    background: var(--surface); color: var(--red); border-color: #81414b;
+}
+html[data-theme="dark"] .app-shell :is(
+    .primary-button, .add-monitor-button, .run-check-button, .primary-action
+) { background: #365fcf; border-color: #365fcf; color: #fff; }
+html[data-theme="dark"] .app-shell :is(
+    .primary-button:hover, .add-monitor-button:hover, .run-check-button:hover:not(:disabled), .primary-action:hover:not(:disabled)
+) { background: #4673e2; border-color: #4673e2; }
+
+html[data-theme="dark"] body .login-shell,
+html[data-theme="dark"] body .login-panel {
+    background: var(--surface); color: var(--text); border-color: var(--border);
+}
+html[data-theme="dark"] body :is(.brand, .login-card h1) { color: var(--heading); }
+html[data-theme="dark"] body .brand-icon { background: #365fcf; color: #fff; }
+html[data-theme="dark"] body :is(.tagline, .login-subtitle, .signup-text, .input-icon, .password-toggle) { color: var(--muted); }
+html[data-theme="dark"] body .input-wrapper input {
+    background: var(--surface-soft); color: var(--text); border-color: var(--border-strong);
+}
+html[data-theme="dark"] body .input-wrapper input::placeholder { color: var(--subtle); }
+html[data-theme="dark"] body .signup-link { color: var(--primary); }
+html[data-theme="dark"] body .visual-panel { filter: brightness(.6); }
+html[data-theme="dark"] body .login-button { background: #365fcf; color: #fff; }
+html[data-theme="dark"] body .login-button:hover:not(:disabled) { background: #4673e2; }

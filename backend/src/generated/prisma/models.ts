@@ -8,10 +8,10 @@
  *
  * 🟢 You can import this file directly.
  */
-export type * from './models/User'
-export type * from './models/Monitor'
-export type * from './models/MonitorCheck'
-export type * from './models/Incident'
-export type * from './models/NotificationOutbox'
-export type * from './models/AlertRule'
-export type * from './commonInputTypes'
+export type * from './models/User.js'
+export type * from './models/Monitor.js'
+export type * from './models/MonitorCheck.js'
+export type * from './models/Incident.js'
+export type * from './models/NotificationOutbox.js'
+export type * from './models/AlertRule.js'
+export type * from './commonInputTypes.js'

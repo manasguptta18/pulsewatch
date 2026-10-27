@@ -1,5 +1,14 @@
 import Joi from "joi";
 
+const newPasswordSchema = Joi.string()
+    .min(8)
+    .max(100)
+    .custom((value, helpers) => Buffer.byteLength(value, "utf8") <= 72
+        ? value
+        : helpers.error("string.max", { limit: 72 }))
+    .messages({ "string.max": "Password must be at most 72 UTF-8 bytes" })
+    .required();
+
 export const createUserSchema = Joi.object({
     name: Joi.string()
         .trim()
@@ -12,14 +21,7 @@ export const createUserSchema = Joi.object({
         .email()
         .required(),
 
-    password: Joi.string()
-        .min(8)
-        .max(100)
-        .custom((value, helpers) => Buffer.byteLength(value, "utf8") <= 72
-            ? value
-            : helpers.error("string.max", { limit: 72 }))
-        .messages({ "string.max": "Password must be at most 72 UTF-8 bytes" })
-        .required(),
+    password: newPasswordSchema,
 });
 
 export const loginSchema = Joi.object({
@@ -32,4 +34,10 @@ export const loginSchema = Joi.object({
         .min(8)
         .max(100)
         .required(),
+});
+
+export const changePasswordSchema = Joi.object({
+    currentPassword: Joi.string().min(8).max(100).required(),
+    newPassword: newPasswordSchema,
+    confirmPassword: Joi.string().valid(Joi.ref("newPassword")).required(),
 });

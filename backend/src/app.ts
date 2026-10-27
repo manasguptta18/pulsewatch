@@ -18,6 +18,7 @@ if (trustedProxyHops > 0) app.set("trust proxy", trustedProxyHops);
 app.use(
     cors({
         origin: getAllowedFrontendOrigins(),
+        exposedHeaders: ["X-Has-More", "X-Next-Cursor"],
     })
 );
 

@@ -44,6 +44,30 @@ describe("monitor check worker", () => {
         await expect(result).rejects.not.toThrow("private-connection-details");
     });
 
+    it("logs safe database error codes before converting failed checks to retryable errors", async () => {
+        const cause = Object.assign(new Error("internal column detail"), { code: "42703" });
+        const failure = Object.assign(new Error("postgres://user:secret@localhost/pulsewatch"), {
+            code: "P2022",
+            cause,
+        });
+        const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        const process = createMonitorCheckProcessor(vi.fn(async () => { throw failure; }));
+
+        await expect(process({
+            monitorId: "42",
+            scheduledOccurrenceId: "due-1",
+        })).rejects.toThrow("Retryable monitor check infrastructure failure");
+
+        expect(errorLog).toHaveBeenCalledExactlyOnceWith("Monitor check execution failed", {
+            monitorId: 42,
+            errorName: "Error",
+            errorCodes: ["P2022", "42703"],
+        });
+        expect(JSON.stringify(errorLog.mock.calls)).not.toContain("secret");
+        expect(JSON.stringify(errorLog.mock.calls)).not.toContain("localhost");
+        errorLog.mockRestore();
+    });
+
     it("marks deleted monitors non-retryable", async () => {
         const process = createMonitorCheckProcessor(vi.fn(async () => {
             throw new AppError("Monitor not found", 404);

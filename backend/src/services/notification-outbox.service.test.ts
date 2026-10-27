@@ -1,8 +1,22 @@
 import { describe, expect, it, vi } from "vitest";
+
+const persistenceMocks = vi.hoisted(() => ({
+    findFirst: vi.fn(),
+    updateMany: vi.fn(),
+    sendEmail: vi.fn(),
+}));
+vi.mock("../lib/prisma.js", () => ({
+    prisma: { notificationOutbox: {
+        findFirst: persistenceMocks.findFirst,
+        updateMany: persistenceMocks.updateMany,
+    } },
+}));
+vi.mock("./email.service.js", () => ({ sendIncidentEmail: persistenceMocks.sendEmail }));
 import {
     createNotificationOutboxProcessor,
     NOTIFICATION_OUTBOX_BASE_BACKOFF_MS,
     NOTIFICATION_OUTBOX_MAX_ATTEMPTS,
+    startNotificationOutboxProcessor,
     type NotificationOutboxDependencies,
     type NotificationOutboxItem,
 } from "./notification-outbox.service.js";
@@ -36,6 +50,56 @@ function dependencies(overrides: Partial<NotificationOutboxDependencies> = {}) {
 }
 
 describe("notification outbox processor", () => {
+    it("does not silently mark a delivery sent after losing its database lease", async () => {
+        persistenceMocks.findFirst.mockReset().mockResolvedValue(item());
+        persistenceMocks.updateMany.mockReset()
+            .mockResolvedValueOnce({ count: 1 })
+            .mockResolvedValueOnce({ count: 0 })
+            .mockResolvedValueOnce({ count: 0 });
+        persistenceMocks.sendEmail.mockReset().mockResolvedValue({ id: "email-1" });
+        const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+        await expect(createNotificationOutboxProcessor().processOne()).resolves.toBe(true);
+
+        expect(persistenceMocks.sendEmail).toHaveBeenCalledOnce();
+        expect(persistenceMocks.sendEmail).toHaveBeenCalledWith(
+            "ops@example.test", "Public API", "AVAILABILITY", "Down", 18,
+        );
+        expect(persistenceMocks.updateMany).toHaveBeenCalledTimes(3);
+        expect(persistenceMocks.updateMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
+            data: expect.objectContaining({ status: "SENT" }),
+        }));
+        expect(errorLog.mock.calls.map(([message]) => message)).toEqual([
+            "Notification outbox state update failed",
+            "Incident notification delivery failed",
+        ]);
+        errorLog.mockRestore();
+    });
+
+    it("reports safe codes when an outbox scan fails", async () => {
+        const cause = Object.assign(new Error("missing relation detail"), { code: "42P01" });
+        const failure = Object.assign(new Error("postgres://user:secret@localhost/pulsewatch"), {
+            code: "P2021",
+            cause,
+        });
+        const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        const deps = dependencies({
+            findNext: vi.fn(async () => { throw failure; }),
+        });
+
+        const stop = startNotificationOutboxProcessor(deps);
+        await vi.waitFor(() => expect(errorLog).toHaveBeenCalledOnce());
+        await stop(100);
+
+        expect(errorLog).toHaveBeenCalledExactlyOnceWith("Notification outbox scan failed", {
+            errorName: "Error",
+            errorCodes: ["P2021", "42P01"],
+        });
+        expect(JSON.stringify(errorLog.mock.calls)).not.toContain("secret");
+        expect(JSON.stringify(errorLog.mock.calls)).not.toContain("localhost");
+        errorLog.mockRestore();
+    });
+
     it("delivers a claimed email and marks its outbox row sent", async () => {
         const deps = dependencies();
         const processor = createNotificationOutboxProcessor(deps);
@@ -44,6 +108,7 @@ describe("notification outbox processor", () => {
         expect(deps.deliverEmail).toHaveBeenCalledExactlyOnceWith(
             "ops@example.test",
             { monitorName: "Public API", incidentType: "AVAILABILITY", reason: "Down" },
+            18,
         );
         expect(deps.markSent).toHaveBeenCalledOnce();
         expect(deps.markFailed).not.toHaveBeenCalled();
@@ -65,6 +130,7 @@ describe("notification outbox processor", () => {
             nextAttemptAt: new Date(now.getTime() + NOTIFICATION_OUTBOX_BASE_BACKOFF_MS),
             errorCode: "TRANSIENT_DELIVERY_FAILURE",
         });
+        expect(deps.markSent).not.toHaveBeenCalled();
         expect(JSON.stringify(errorLog.mock.calls)).not.toContain("temporary");
         errorLog.mockRestore();
     });
@@ -82,6 +148,7 @@ describe("notification outbox processor", () => {
             permanent: true,
             errorCode: "PERMANENT_DELIVERY_FAILURE",
         }));
+        expect(permanent.markSent).not.toHaveBeenCalled();
 
         const exhausted = dependencies({
             findNext: vi.fn(async () => item({ attempts: NOTIFICATION_OUTBOX_MAX_ATTEMPTS - 1 })),
@@ -93,6 +160,7 @@ describe("notification outbox processor", () => {
             expect.any(Date),
             expect.objectContaining({ permanent: true, attempts: NOTIFICATION_OUTBOX_MAX_ATTEMPTS }),
         );
+        expect(exhausted.markSent).not.toHaveBeenCalled();
         errorLog.mockRestore();
     });
 

@@ -1,4 +1,5 @@
 import Redis from "ioredis";
+import { safeErrorDetails } from "./safe-error.js";
 
 const REDIS_URL_ERROR = "REDIS_URL must be a valid Redis connection URL";
 const REDIS_SHUTDOWN_TIMEOUT_MS = 5_000;
@@ -31,12 +32,16 @@ export function validateRedisUrl(redisUrl: string | undefined): string {
 
 /** Create a lazy ioredis connection suitable for BullMQ. */
 export function createRedisConnection(redisUrl = process.env.REDIS_URL) {
-    return new Redis(validateRedisUrl(redisUrl), {
+    const connection = new Redis(validateRedisUrl(redisUrl), {
         // BullMQ requires this so blocking commands can wait for jobs safely.
         maxRetriesPerRequest: null,
         // Importing or configuring the queue must not connect to Redis by itself.
         lazyConnect: true,
     });
+    connection.on("error", (error) => {
+        console.error("Redis connection error", safeErrorDetails(error));
+    });
+    return connection;
 }
 
 let redisConnection: ReturnType<typeof createRedisConnection> | undefined;
@@ -59,7 +64,7 @@ export function getQueueProducerConnection() {
 }
 
 export function createQueueProducerConnection(redisUrl = process.env.REDIS_URL) {
-    return new Redis(validateRedisUrl(redisUrl), {
+    const connection = new Redis(validateRedisUrl(redisUrl), {
         maxRetriesPerRequest: null,
         lazyConnect: true,
         connectTimeout: 5_000,
@@ -67,6 +72,10 @@ export function createQueueProducerConnection(redisUrl = process.env.REDIS_URL) 
         enableOfflineQueue: false,
         retryStrategy: (attempt) => attempt <= 3 ? attempt * 250 : null,
     });
+    connection.on("error", (error) => {
+        console.error("Redis queue producer connection error", safeErrorDetails(error));
+    });
+    return connection;
 }
 
 /** Quit a Redis client within a deadline, then disconnect it if Redis is down. */

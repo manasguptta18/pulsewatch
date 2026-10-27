@@ -386,6 +386,19 @@
     color: #fca5a5;
 
     font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.dashboard-error button {
+    border: 1px solid #74434a;
+    border-radius: 5px;
+    padding: 6px 10px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
 }
 
 /* =========================
@@ -943,8 +956,10 @@
 }
 
 .legend-line {
-    width: 17px;
-    height: 2px;
+    width: 8px;
+    height: 8px;
+    flex-shrink: 0;
+    border-radius: 50%;
 
     display: inline-block;
 
@@ -1363,4 +1378,27 @@
     .analysis-chart {
         height: 230px;
     }
+}
+
+.monitor-name-link {
+    padding: 0;
+
+    border: 0;
+    background: transparent;
+
+    color: #e7edf5;
+
+    font: inherit;
+    font-size: 12px;
+    font-weight: 650;
+
+    text-align: left;
+
+    cursor: pointer;
+}
+
+.monitor-name-link:hover {
+    color: #9b94ff;
+    text-decoration: underline;
+    text-underline-offset: 3px;
 }

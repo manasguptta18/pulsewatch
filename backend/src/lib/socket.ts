@@ -4,6 +4,7 @@ import {createAdapter} from "@socket.io/redis-adapter";
 import {Server, type Socket} from "socket.io";
 import {closeRedisClient, getRedisConnection} from "./redis.js";
 import { getAllowedFrontendOrigins } from "./runtime-env.js";
+import { safeErrorDetails } from "./safe-error.js";
 
 let io: Server | null = null;
 let socketAdapterSubscriber: ReturnType<typeof getRedisConnection> | undefined;
@@ -87,6 +88,9 @@ export function emitToUser(
 export function initializeSocket(httpServer: HttpServer){
     const publisher = getRedisConnection();
     const subscriber = publisher.duplicate();
+    subscriber.on("error", (error) => {
+        console.error("Socket.IO Redis subscriber connection error", safeErrorDetails(error));
+    });
     socketAdapterSubscriber = subscriber;
 
     io = new Server(httpServer,{

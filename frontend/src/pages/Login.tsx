@@ -1,14 +1,17 @@
 import { useState } from "react";
-import type { SubmitEvent } from "react";
-import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import type { FormEvent } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
-import { loginUser } from "../services/auth.service";
+import { getApiErrorMessage } from "../services/api";
+import { loginUser, registerUser } from "../services/auth.service";
 import "./Login.css";
 
 function Login() {
     const navigate = useNavigate();
+    const location = useLocation();
 
+    const [mode, setMode] = useState<"login" | "register">("login");
+    const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
 
@@ -17,31 +20,37 @@ function Login() {
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
 
     async function handleSubmit(
-        event: SubmitEvent<HTMLFormElement>
+        event: FormEvent<HTMLFormElement>
     ) {
         event.preventDefault();
 
         setError("");
+        setSuccess("");
         setLoading(true);
 
         try {
-            await loginUser({
-                email,
-                password,
-            });
-
-            navigate("/dashboard");
-        } catch (error) {
-            if (axios.isAxiosError(error)) {
-                setError(
-                    error.response?.data?.message ??
-                        "Unable to connect to the server"
-                );
+            if (mode === "register") {
+                if (new TextEncoder().encode(password).length > 72) {
+                    setError("Password must be no more than 72 UTF-8 bytes.");
+                    return;
+                }
+                await registerUser({ name, email, password });
+                setMode("login");
+                setName("");
+                setPassword("");
+                setSuccess("Account created. Log in with your new credentials.");
             } else {
-                setError("Something went wrong");
+                await loginUser({ email, password });
+                navigate("/dashboard", { replace: true });
             }
+        } catch (requestError) {
+            setError(getApiErrorMessage(
+                requestError,
+                mode === "login" ? "Unable to log in." : "Unable to create your account.",
+            ));
         } finally {
             setLoading(false);
         }
@@ -65,16 +74,38 @@ function Login() {
                     </p>
 
                     <div className="login-card">
-                        <h1>Welcome back</h1>
+                        <h1>{mode === "login" ? "Welcome back" : "Create your account"}</h1>
 
                         <p className="login-subtitle">
-                            Log in to your account to continue
+                            {mode === "login"
+                                ? "Log in to your account to continue"
+                                : "Create a PulseWatch account to get started"}
                         </p>
+
+                        {location.state?.sessionExpired && mode === "login" && (
+                            <p className="login-notice" role="status">Your session expired. Please log in again.</p>
+                        )}
 
                         <form
                             onSubmit={handleSubmit}
                             className="login-form"
                         >
+                            {mode === "register" && (
+                                <div className="input-wrapper">
+                                    <label htmlFor="name" className="sr-only">Name</label>
+                                    <input
+                                        id="name"
+                                        name="name"
+                                        type="text"
+                                        autoComplete="name"
+                                        placeholder="Your name"
+                                        value={name}
+                                        maxLength={100}
+                                        onChange={(event) => setName(event.target.value)}
+                                        required
+                                    />
+                                </div>
+                            )}
                             <label
                                 htmlFor="email"
                                 className="sr-only"
@@ -89,7 +120,9 @@ function Login() {
 
                                 <input
                                     id="email"
+                                    name="email"
                                     type="email"
+                                    autoComplete="email"
                                     placeholder="you@example.com"
                                     value={email}
                                     onChange={(event) =>
@@ -115,12 +148,16 @@ function Login() {
 
                                 <input
                                     id="password"
+                                    name="password"
                                     type={
                                         showPassword
                                             ? "text"
                                             : "password"
                                     }
                                     placeholder="Password"
+                                    autoComplete={mode === "login" ? "current-password" : "new-password"}
+                                    minLength={8}
+                                    maxLength={100}
                                     value={password}
                                     onChange={(event) =>
                                         setPassword(
@@ -152,10 +189,11 @@ function Login() {
                             </div>
 
                             {error && (
-                                <p className="login-error">
+                                <p className="login-error" role="alert">
                                     {error}
                                 </p>
                             )}
+                            {success && <p className="login-success" role="status">{success}</p>}
 
                             <button
                                 type="submit"
@@ -163,19 +201,22 @@ function Login() {
                                 disabled={loading}
                             >
                                 {loading
-                                    ? "Logging in..."
-                                    : "Login"}
+                                    ? mode === "login" ? "Logging in..." : "Creating account..."
+                                    : mode === "login" ? "Login" : "Create account"}
                             </button>
                         </form>
 
                         <p className="signup-text">
-                            Don't have an account?
-
                             <button
                                 type="button"
                                 className="signup-link"
+                                onClick={() => {
+                                    setMode((current) => current === "login" ? "register" : "login");
+                                    setError("");
+                                    setSuccess("");
+                                }}
                             >
-                                Sign up
+                                {mode === "login" ? "Create an account" : "Back to login"}
                             </button>
                         </p>
                     </div>

@@ -1,26 +1,29 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
-    LineChart,
-    Line,
+    ScatterChart,
+    Scatter,
+    ZAxis,
     XAxis,
     YAxis,
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
 } from "recharts";
+import AppShell from "../components/AppShell";
 
 import {
     connectSocket,
-    disconnectSocket,
 } from "../lib/socket";
 
 import {
     getMonitors,
     type Monitor,
     type MonitorIncident,
+    withLatestCheck,
 } from "../services/monitor.service";
+import { getApiErrorMessage } from "../services/api";
 
 import "./Dashboard.css";
 
@@ -57,42 +60,45 @@ function Dashboard() {
 
     const [socketConnected, setSocketConnected] =
         useState(false);
+    const [currentTime, setCurrentTime] = useState(0);
+
+    const loadMonitors = useCallback(async () => {
+        setLoading(true);
+        setError("");
+        try {
+            setMonitors(await getMonitors());
+        } catch (requestError) {
+            setError(getApiErrorMessage(requestError, "Unable to load your monitors."));
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
-        async function loadMonitors() {
-            try {
-                const data = await getMonitors();
+        let active = true;
+        getMonitors().then((data) => {
+            if (active) setMonitors(data);
+        }).catch((requestError: unknown) => {
+            if (active) setError(getApiErrorMessage(requestError, "Unable to load your monitors."));
+        }).finally(() => {
+            if (active) setLoading(false);
+        });
+        return () => { active = false; };
+    }, []);
 
-                setMonitors(data);
-            } catch {
-                setError(
-                    "Unable to load your monitors"
-                );
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        loadMonitors();
+    useEffect(() => {
+        const timer = window.setInterval(() => setCurrentTime(Date.now()), 30_000);
+        return () => window.clearInterval(timer);
     }, []);
 
     useEffect(() => {
         const socket = connectSocket();
-
         function handleConnect() {
-            console.log(
-                "Connected to PulseWatch realtime server:",
-                socket.id
-            );
-
             setSocketConnected(true);
+            void loadMonitors();
         }
 
         function handleDisconnect() {
-            console.log(
-                "Disconnected from PulseWatch realtime server"
-            );
-
             setSocketConnected(false);
         }
 
@@ -100,11 +106,6 @@ function Dashboard() {
             monitorId: number;
             check: Monitor["checks"][number];
         }) {
-            console.log(
-                "Realtime monitor update received:",
-                payload
-            );
-
             setMonitors((currentMonitors) =>
                 currentMonitors.map((monitor) => {
                     if (
@@ -114,14 +115,7 @@ function Dashboard() {
                         return monitor;
                     }
 
-                    return {
-                        ...monitor,
-
-                        checks: [
-                            payload.check,
-                            ...monitor.checks,
-                        ].slice(0, 20),
-                    };
+                    return withLatestCheck(monitor, payload.check);
                 })
             );
         }
@@ -129,19 +123,16 @@ function Dashboard() {
         function handleIncidentCreated(
             payload: IncidentSocketPayload
         ) {
-            console.log(
-                "Realtime incident created:",
-                payload
-            );
-
+            if (!payload.startedAt || !Number.isFinite(Date.parse(payload.startedAt))) {
+                void loadMonitors();
+                return;
+            }
             const newIncident: MonitorIncident = {
                 id: payload.incidentId,
                 type: payload.type,
                 status: payload.status,
                 reason: payload.reason ?? null,
-                startedAt:
-                    payload.startedAt ??
-                    new Date().toISOString(),
+                startedAt: payload.startedAt,
                 resolvedAt: null,
             };
 
@@ -158,7 +149,8 @@ function Dashboard() {
                         ...monitor,
                         incidents: [
                             newIncident,
-                        ],
+                            ...monitor.incidents.filter((incident) => incident.id !== newIncident.id),
+                        ].slice(0, 20),
                     };
                 })
             );
@@ -177,11 +169,6 @@ function Dashboard() {
         function handleIncidentResolved(
             payload: IncidentSocketPayload
         ) {
-            console.log(
-                "Realtime incident resolved:",
-                payload
-            );
-
             setMonitors((currentMonitors) =>
                 currentMonitors.map((monitor) => {
                     if (
@@ -267,9 +254,8 @@ function Dashboard() {
                 handleIncidentResolved
             );
 
-            disconnectSocket();
         };
-    }, []);
+    }, [loadMonitors]);
 
     function getStatus(monitor: Monitor) {
         const latestCheck = monitor.checks[0];
@@ -299,10 +285,6 @@ function Dashboard() {
         return "UNKNOWN";
     }
 
-    function getStatusClass(monitor: Monitor) {
-        return getStatus(monitor).toLowerCase();
-    }
-
     function formatLatency(monitor: Monitor) {
         const latency =
             monitor.checks[0]?.latencyMs;
@@ -328,7 +310,7 @@ function Dashboard() {
         }
 
         const difference =
-            Date.now() -
+            currentTime -
             new Date(checkedAt).getTime();
 
         const seconds = Math.floor(
@@ -372,11 +354,10 @@ function Dashboard() {
             getStatus(monitor) === "DOWN"
     ).length;
 
-    const unknownCount =
-        monitors.length -
-        onlineCount -
-        degradedCount -
-        downCount;
+    const activeIntervals = Array.from(new Set(
+        monitors.filter((monitor) => monitor.isActive).map((monitor) => monitor.intervalSeconds)
+    )).sort((left, right) => left - right);
+    const overviewUnavailable = loading || Boolean(error);
 
     const activeIncidents =
         monitors.flatMap(
@@ -384,80 +365,25 @@ function Dashboard() {
                 monitor.incidents ?? []
         );
 
-    const chartData = Array.from(
-        {
-            length: Math.max(
-                ...monitors.map(
-                    (monitor) =>
-                        monitor.checks.length
-                ),
-                0
-            ),
-        },
-        (_, index) => {
-            const point: Record<
-                string,
-                string | number | null
-            > = {
-                time: "",
-            };
+    const chartData = monitors.map((monitor) => ({
+        monitor,
+        points: monitor.checks.slice(0, 20)
+            .filter((check) => check.latencyMs !== null && Number.isFinite(Date.parse(check.checkedAt)))
+            .map((check) => ({
+                timestamp: Date.parse(check.checkedAt),
+                latency: check.latencyMs as number,
+                status: check.status,
+            })),
+    }));
+    const visibleChartData = chartData.filter(({ points }) => points.length > 0);
+    const hasLatencyPoints = visibleChartData.length > 0;
 
-            monitors.forEach((monitor) => {
-                const check =
-                    monitor.checks[
-                        monitor.checks.length -
-                            1 -
-                            index
-                    ];
-
-                point[
-                    `monitor_${monitor.id}`
-                ] =
-                    check?.latencyMs ??
-                    null;
-
-                if (
-                    !point.time &&
-                    check?.checkedAt
-                ) {
-                    point.time =
-                        new Date(
-                            check.checkedAt
-                        ).toLocaleTimeString(
-                            [],
-                            {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                            }
-                        );
-                }
-            });
-
-            return point;
-        }
-    );
-
-    const averageLatency =
-        monitors.length > 0
-            ? Math.round(
-                  monitors.reduce(
-                      (
-                          total,
-                          monitor
-                      ) =>
-                          total +
-                          (monitor
-                              .checks[0]
-                              ?.latencyMs ??
-                              0),
-                      0
-                  ) /
-                      Math.max(
-                          monitors.length,
-                          1
-                      )
-              )
-            : null;
+    const latestLatencies = monitors
+        .map((monitor) => monitor.checks[0]?.latencyMs)
+        .filter((latency): latency is number => latency !== null && latency !== undefined);
+    const averageLatency = latestLatencies.length > 0
+        ? Math.round(latestLatencies.reduce((total, latency) => total + latency, 0) / latestLatencies.length)
+        : null;
 
     const chartColors = [
         "#7467ff",
@@ -471,136 +397,7 @@ function Dashboard() {
     ];
 
     return (
-        <main className="dashboard-page">
-            <aside className="sidebar">
-                <div className="sidebar-brand">
-                    <span className="brand-wave">
-                        〰
-                    </span>
-
-                    <span>PulseWatch</span>
-                </div>
-
-                <nav className="sidebar-nav">
-                    <button className="nav-item active">
-                        <span>⌂</span>
-                        Dashboard
-                    </button>
-
-                    <button
-                        className="nav-item"
-                        onClick={() =>
-                            navigate(
-                                "/monitors"
-                            )
-                        }
-                    >
-                        <span>◉</span>
-                        Monitors
-                    </button>
-
-                    <button
-                        className="nav-item"
-                        onClick={() =>
-                            navigate(
-                                "/incidents"
-                            )
-                        }
-                    >
-                        <span>△</span>
-                        Incidents
-
-                        {activeIncidents.length >
-                            0 && (
-                            <span className="nav-count">
-                                {
-                                    activeIncidents.length
-                                }
-                            </span>
-                        )}
-                    </button>
-                </nav>
-
-                <div className="sidebar-bottom">
-                    <button className="nav-item">
-                        <span>⚙</span>
-                        Settings
-                    </button>
-
-                    <button
-                        className="nav-item"
-                        onClick={() => {
-                            localStorage.removeItem(
-                                "token"
-                            );
-
-                            navigate("/login");
-                        }}
-                    >
-                        <span>↪</span>
-                        Logout
-                    </button>
-
-                    <div className="user-area">
-                        <div className="user-avatar">
-                            M
-                        </div>
-
-                        <div>
-                            <strong>
-                                Manas
-                            </strong>
-
-                            <span>
-                                PulseWatch user
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </aside>
-
-            <section className="dashboard-content">
-                <header className="topbar">
-                    <div className="search-box">
-                        <span>⌕</span>
-
-                        <input
-                            id="monitor-search"
-                            name="monitorSearch"
-                            type="text"
-                            placeholder="Search monitors, incidents..."
-                        />
-                    </div>
-
-                    <div className="topbar-user">
-                        <span
-                            className={`realtime-status ${
-                                socketConnected
-                                    ? "connected"
-                                    : "disconnected"
-                            }`}
-                        >
-                            <span className="realtime-dot" />
-
-                            {socketConnected
-                                ? "Realtime connected"
-                                : "Realtime disconnected"}
-                        </span>
-
-                        <span className="notification">
-                            ♧
-                        </span>
-
-                        <div className="top-avatar">
-                            M
-                        </div>
-
-                        <span>Manas</span>
-
-                        <span>⌄</span>
-                    </div>
-                </header>
-
+        <AppShell activeSection="dashboard" pageTitle="Overview" realtimeConnected={socketConnected} incidentCount={activeIncidents.length}>
                 <div className="dashboard-main">
                     <div className="page-header">
                         <div>
@@ -622,14 +419,15 @@ function Dashboard() {
                             </p>
                         </div>
 
-                        <button className="primary-button">
+                        <button className="primary-button" onClick={() => navigate("/monitors", { state: { openCreate: true } })}>
                             + Add Monitor
                         </button>
                     </div>
 
                     {error && (
-                        <div className="dashboard-error">
-                            {error}
+                        <div className="dashboard-error" role="alert">
+                            <span>{error}</span>
+                            <button type="button" onClick={() => void loadMonitors()}>Retry</button>
                         </div>
                     )}
 
@@ -702,7 +500,7 @@ function Dashboard() {
                             </span>
 
                             <strong>
-                                {monitors.length}
+                                {overviewUnavailable ? "—" : monitors.length}
                             </strong>
                         </div>
 
@@ -712,7 +510,7 @@ function Dashboard() {
                             </span>
 
                             <strong className="online-text">
-                                {onlineCount}
+                                {overviewUnavailable ? "—" : onlineCount}
                             </strong>
                         </div>
 
@@ -722,7 +520,7 @@ function Dashboard() {
                             </span>
 
                             <strong className="degraded-text">
-                                {degradedCount}
+                                {overviewUnavailable ? "—" : degradedCount}
                             </strong>
                         </div>
 
@@ -732,7 +530,7 @@ function Dashboard() {
                             </span>
 
                             <strong className="down-text">
-                                {downCount}
+                                {overviewUnavailable ? "—" : downCount}
                             </strong>
                         </div>
 
@@ -742,9 +540,7 @@ function Dashboard() {
                             </span>
 
                             <strong className="incident-text">
-                                {
-                                    activeIncidents.length
-                                }
+                                {overviewUnavailable ? "—" : activeIncidents.length}
                             </strong>
                         </div>
                     </section>
@@ -758,9 +554,7 @@ function Dashboard() {
                                     </h2>
 
                                     <span className="section-count">
-                                        {
-                                            monitors.length
-                                        }
+                                        {overviewUnavailable ? "—" : monitors.length}
                                     </span>
                                 </div>
 
@@ -818,6 +612,8 @@ function Dashboard() {
                                     Loading
                                     monitors...
                                 </div>
+                            ) : error ? (
+                                <div className="table-message">Monitor data is unavailable. Use Retry above to try again.</div>
                             ) : monitors.length ===
                               0 ? (
                                 <div className="table-message">
@@ -860,11 +656,17 @@ function Dashboard() {
                                                     </span>
 
                                                     <div className="monitor-name-cell">
-                                                        <strong>
-                                                            {
-                                                                monitor.name
+                                                        <button
+                                                            className="monitor-name-link"
+                                                            type="button"
+                                                            onClick={() =>
+                                                                navigate(
+                                                                    `/monitors/${monitor.id}`
+                                                                )
                                                             }
-                                                        </strong>
+                                                        >
+                                                            {monitor.name}
+                                                        </button>
 
                                                         {monitor.incidents[0] && (
                                                             <span>
@@ -932,16 +734,12 @@ function Dashboard() {
                                         </h2>
 
                                         <span className="chart-period">
-                                            Last 20
-                                            checks
+                                            Up to 20 per monitor
                                         </span>
                                     </div>
 
                                     <p>
-                                        Measured
-                                        latency from
-                                        real monitor
-                                        checks.
+                                        Each dot is one timestamped latency measurement. Checks without latency remain in monitor history.
                                     </p>
                                 </div>
 
@@ -952,8 +750,9 @@ function Dashboard() {
 
                             <div className="analysis-content">
                                 <div className="analysis-chart">
-                                    {chartData.length ===
-                                    0 ? (
+                                    {error ? (
+                                        <div className="chart-empty">Latency history is unavailable. Retry loading monitors to refresh it.</div>
+                                    ) : !hasLatencyPoints ? (
                                         <div className="chart-empty">
                                             No response
                                             data
@@ -967,10 +766,7 @@ function Dashboard() {
                                                 270
                                             }
                                         >
-                                            <LineChart
-                                                data={
-                                                    chartData
-                                                }
+                                            <ScatterChart
                                                 margin={{
                                                     top: 10,
                                                     right: 10,
@@ -983,13 +779,16 @@ function Dashboard() {
                                                     vertical={
                                                         false
                                                     }
-                                                    stroke="rgba(148, 163, 184, 0.10)"
+                                                    stroke="var(--chart-grid)"
                                                 />
 
                                                 <XAxis
-                                                    dataKey="time"
+                                                    dataKey="timestamp"
+                                                    type="number"
+                                                    domain={["dataMin", "dataMax"]}
+                                                    tickFormatter={(value) => new Date(Number(value)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                                                     tick={{
-                                                        fill: "#71809a",
+                                                        fill: "var(--muted)",
                                                         fontSize: 10,
                                                     }}
                                                     tickLine={
@@ -1004,8 +803,11 @@ function Dashboard() {
                                                 />
 
                                                 <YAxis
+                                                    dataKey="latency"
+                                                    type="number"
+                                                    domain={["auto", "auto"]}
                                                     tick={{
-                                                        fill: "#71809a",
+                                                        fill: "var(--muted)",
                                                         fontSize: 10,
                                                     }}
                                                     tickLine={
@@ -1024,89 +826,39 @@ function Dashboard() {
                                                     }
                                                 />
 
+                                                <ZAxis range={[48, 48]} />
+
                                                 <Tooltip
                                                     contentStyle={{
                                                         background:
-                                                            "#0d1726",
-                                                        border: "1px solid #25354d",
+                                                            "var(--chart-tooltip-bg)",
+                                                        border: "1px solid var(--border)",
                                                         borderRadius:
                                                             "8px",
-                                                        color: "#f8fafc",
+                                                        color: "var(--chart-tooltip-text)",
                                                         boxShadow:
                                                             "0 12px 30px rgba(0,0,0,0.25)",
                                                     }}
                                                     labelStyle={{
-                                                        color: "#94a3b8",
+                                                        color: "var(--muted)",
                                                         marginBottom:
                                                             "4px",
                                                     }}
-                                                    formatter={(
-                                                        value,
-                                                        name
-                                                    ) => {
-                                                        const monitor =
-                                                            monitors.find(
-                                                                (
-                                                                    item
-                                                                ) =>
-                                                                    `monitor_${item.id}` ===
-                                                                    name
-                                                            );
-
-                                                        return [
-                                                            `${value} ms`,
-                                                            monitor?.name ??
-                                                                name,
-                                                        ];
-                                                    }}
+                                                    labelFormatter={(value) => new Date(Number(value)).toLocaleString()}
+                                                    formatter={(value) => [`${value} ms`, "Latency"]}
                                                 />
 
-                                                {monitors.map(
-                                                    (
-                                                        monitor,
-                                                        index
-                                                    ) => (
-                                                        <Line
-                                                            key={
-                                                                monitor.id
-                                                            }
-                                                            type="monotone"
-                                                            dataKey={`monitor_${monitor.id}`}
-                                                            stroke={
-                                                                chartColors[
-                                                                    index %
-                                                                        chartColors.length
-                                                                ]
-                                                            }
-                                                            strokeWidth={
-                                                                2.2
-                                                            }
-                                                            dot={
-                                                                false
-                                                            }
-                                                            activeDot={{
-                                                                r: 4,
-                                                            }}
-                                                            connectNulls={
-                                                                true
-                                                            }
-                                                            animationDuration={
-                                                                400
-                                                            }
-                                                        />
-                                                    )
-                                                )}
-                                            </LineChart>
+                                                {visibleChartData.map(({ monitor, points }, index) => (
+                                                    <Scatter key={monitor.id} name={monitor.name} data={points} dataKey="latency" fill={chartColors[index % chartColors.length]} />
+                                                ))}
+                                            </ScatterChart>
                                         </ResponsiveContainer>
                                     )}
                                 </div>
 
                                 <div className="chart-legend">
-                                    {monitors.map(
-                                        (
-                                            monitor,
-                                            index
-                                        ) => (
+                                    {visibleChartData.map(
+                                        ({ monitor }, index) => (
                                             <div
                                                 className="legend-item"
                                                 key={
@@ -1142,9 +894,7 @@ function Dashboard() {
 
                                 <div className="analysis-labels">
                                     <span>
-                                        Average
-                                        current
-                                        latency
+                                        Mean of latest available latencies ({latestLatencies.length} monitors)
                                     </span>
 
                                     <strong>
@@ -1174,7 +924,7 @@ function Dashboard() {
                                         </p>
                                     </div>
 
-                                    {activeIncidents.length >
+                                    {!overviewUnavailable && activeIncidents.length >
                                         0 && (
                                         <span className="incident-counter">
                                             {
@@ -1185,26 +935,29 @@ function Dashboard() {
                                 </div>
 
                                 <div className="incident-list">
-                                    {activeIncidents.length ===
-                                    0 ? (
+                                    {loading || error || monitors.length === 0 || activeIncidents.length === 0 ? (
                                         <div className="no-incidents">
-                                            <span className="healthy-check">
-                                                ✓
-                                            </span>
+                                            {!loading && !error && monitors.length > 0 && <span className="healthy-check">✓</span>}
 
                                             <div>
                                                 <strong>
-                                                    No active
-                                                    incidents
+                                                    {loading
+                                                        ? "Loading incident data…"
+                                                        : error
+                                                          ? "Incident data is unavailable"
+                                                          : monitors.length === 0
+                                                            ? "Add a monitor to see incidents"
+                                                            : "No active incidents"}
                                                 </strong>
 
                                                 <span>
-                                                    All
-                                                    monitored
-                                                    services
-                                                    are
-                                                    operating
-                                                    normally.
+                                                    {loading
+                                                        ? "Waiting for monitor data."
+                                                        : error
+                                                          ? "Retry monitor loading to refresh incident data."
+                                                          : monitors.length === 0
+                                                            ? "Incident status appears here after you create a monitor."
+                                                            : "All monitored services are operating normally."}
                                                 </span>
                                             </div>
                                         </div>
@@ -1233,11 +986,7 @@ function Dashboard() {
                                                         key={
                                                             incident.id
                                                         }
-                                                        onClick={() =>
-                                                            navigate(
-                                                                "/incidents"
-                                                            )
-                                                        }
+                                                        onClick={() => monitor && navigate(`/monitors/${monitor.id}`)}
                                                     >
                                                         <span
                                                             className={`incident-severity ${
@@ -1322,12 +1071,11 @@ function Dashboard() {
 
                                 <div className="system-stat">
                                     <span>
-                                        Check
-                                        interval
+                                        Active monitor intervals
                                     </span>
 
                                     <strong>
-                                        60 seconds
+                                        {overviewUnavailable || activeIntervals.length === 0 ? "—" : activeIntervals.map((seconds) => `${seconds}s`).join(" · ")}
                                     </strong>
                                 </div>
 
@@ -1339,7 +1087,7 @@ function Dashboard() {
 
                                     <strong>
                                         {
-                                            monitors.filter(
+                                            overviewUnavailable ? "—" : monitors.filter(
                                                 (
                                                     monitor
                                                 ) =>
@@ -1356,17 +1104,14 @@ function Dashboard() {
                                     </span>
 
                                     <strong>
-                                        {
-                                            activeIncidents.length
-                                        }
+                                        {overviewUnavailable ? "—" : activeIncidents.length}
                                     </strong>
                                 </div>
                             </div>
                         </div>
                     </section>
                 </div>
-            </section>
-        </main>
+        </AppShell>
     );
 }
 

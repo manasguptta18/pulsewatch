@@ -1,4 +1,6 @@
 
+import { safeErrorDetails } from "../lib/safe-error.js";
+
 export const NOTIFICATION_OUTBOX_MAX_ATTEMPTS = 8;
 export const NOTIFICATION_OUTBOX_BASE_BACKOFF_MS = 30_000;
 export const NOTIFICATION_OUTBOX_MAX_BACKOFF_MS = 60 * 60_000;
@@ -32,7 +34,7 @@ export interface NotificationOutboxDependencies {
         monitorName: string;
         incidentType: string;
         reason: string;
-    }) => Promise<unknown>;
+    }, outboxId: number) => Promise<unknown>;
     now?: () => Date;
 }
 
@@ -105,14 +107,15 @@ function prismaOutboxDependencies(): NotificationOutboxDependencies {
         },
         markSent: async (item, leaseUntil, at) => {
             const { prisma } = await import("../lib/prisma.js");
-            await prisma.notificationOutbox.updateMany({
+            const result = await prisma.notificationOutbox.updateMany({
                 where: { id: item.id, status: "PROCESSING", lockedUntil: leaseUntil },
                 data: { status: "SENT", sentAt: at, lockedUntil: null, lastErrorCode: null },
             });
+            if (result.count !== 1) throw new Error("Notification outbox lease was lost");
         },
         markFailed: async (item, leaseUntil, failure) => {
             const { prisma } = await import("../lib/prisma.js");
-            await prisma.notificationOutbox.updateMany({
+            const result = await prisma.notificationOutbox.updateMany({
                 where: { id: item.id, status: "PROCESSING", lockedUntil: leaseUntil },
                 data: {
                     status: failure.permanent ? "FAILED" : "PENDING",
@@ -121,10 +124,11 @@ function prismaOutboxDependencies(): NotificationOutboxDependencies {
                     lastErrorCode: failure.errorCode,
                 },
             });
+            if (result.count !== 1) throw new Error("Notification outbox lease was lost");
         },
-        deliverEmail: async (destination, payload) => {
+        deliverEmail: async (destination, payload, outboxId) => {
             const { sendIncidentEmail } = await import("./email.service.js");
-            return sendIncidentEmail(destination, payload.monitorName, payload.incidentType, payload.reason);
+            return sendIncidentEmail(destination, payload.monitorName, payload.incidentType, payload.reason, outboxId);
         },
     };
 }
@@ -153,7 +157,7 @@ export function createNotificationOutboxProcessor(
                 return true;
             }
 
-            await dependencies.deliverEmail(item.destination, payload);
+            await dependencies.deliverEmail(item.destination, payload, item.id);
             await dependencies.markSent(item, leaseUntil, now);
         } catch (error) {
             const permanent = !isRetryableFailure(error) || attempts >= NOTIFICATION_OUTBOX_MAX_ATTEMPTS;
@@ -170,14 +174,18 @@ export function createNotificationOutboxProcessor(
                     nextAttemptAt,
                     errorCode,
                 });
-            } catch {
+            } catch (error) {
                 // The processing lease expires and allows another process to recover it.
-                console.error("Notification outbox state update failed", { outboxId: item.id });
+                console.error("Notification outbox state update failed", {
+                    outboxId: item.id,
+                    ...safeErrorDetails(error),
+                });
             }
             console.error("Incident notification delivery failed", {
                 outboxId: item.id,
                 errorCode,
                 permanent,
+                ...safeErrorDetails(error),
             });
         }
         return true;
@@ -193,8 +201,10 @@ export function createNotificationOutboxProcessor(
 }
 
 /** Run outbox delivery independently of monitor-check job completion. */
-export function startNotificationOutboxProcessor() {
-    const processor = createNotificationOutboxProcessor();
+export function startNotificationOutboxProcessor(
+    dependencies: NotificationOutboxDependencies = prismaOutboxDependencies(),
+) {
+    const processor = createNotificationOutboxProcessor(dependencies);
     let stopped = false;
     let inFlight: Promise<number> | undefined;
     const run = () => {
@@ -204,11 +214,13 @@ export function startNotificationOutboxProcessor() {
     };
 
     const timer = setInterval(() => {
-        void run()?.catch(() => {
-            console.error("Notification outbox scan failed");
+        void run()?.catch((error: unknown) => {
+            console.error("Notification outbox scan failed", safeErrorDetails(error));
         });
     }, NOTIFICATION_OUTBOX_POLL_INTERVAL_MS);
-    void run()?.catch(() => console.error("Notification outbox scan failed"));
+    void run()?.catch((error: unknown) => {
+        console.error("Notification outbox scan failed", safeErrorDetails(error));
+    });
 
     return async (timeoutMs = NOTIFICATION_OUTBOX_STOP_TIMEOUT_MS): Promise<boolean> => {
         stopped = true;

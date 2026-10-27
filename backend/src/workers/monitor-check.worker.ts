@@ -19,6 +19,7 @@ import { setSocketEventPublisher } from "../lib/socket.js";
 import { AppError } from "../errors/app-error.js";
 import { startNotificationOutboxProcessor } from "../services/notification-outbox.service.js";
 import { validateRuntimeEnvironment } from "../lib/runtime-env.js";
+import { safeErrorDetails } from "../lib/safe-error.js";
 
 export const DEFAULT_MONITOR_WORKER_CONCURRENCY = 5;
 export const MAX_MONITOR_WORKER_CONCURRENCY = 32;
@@ -133,6 +134,10 @@ export function createMonitorCheckProcessor(
                     `${MONITOR_CHECK_NON_RETRYABLE_FAILURE_PREFIX} monitor is no longer applicable`,
                 );
             }
+            console.error("Monitor check execution failed", {
+                monitorId: validData.monitorId,
+                ...safeErrorDetails(error),
+            });
             // Store a useful category in BullMQ without copying database or
             // network errors (which can contain connection details) into Redis.
             throw new Error(MONITOR_CHECK_RETRYABLE_FAILURE_REASON);
@@ -276,9 +281,6 @@ export async function startMonitorCheckWorkerProcess() {
     );
     const queueRedis = getRedisConnection();
     const eventPublisherRedis = createRedisConnection();
-    eventPublisherRedis.on("error", () => {
-        console.error("Monitor worker event publisher Redis connection error");
-    });
 
     let prismaClient: typeof import("../lib/prisma.js").prisma | undefined;
     let worker: Worker<MonitorCheckJobData, unknown, string> | undefined;
@@ -306,11 +308,14 @@ export async function startMonitorCheckWorkerProcess() {
             (job: Job<MonitorCheckJobData>) => processor(job.data),
             createMonitorCheckWorkerOptions(queueRedis, concurrency),
         );
-        worker.on("failed", (job) => {
-            console.error("Monitor check job failed", job?.id ? { jobId: job.id } : {});
+        worker.on("failed", (job, error) => {
+            console.error("Monitor check job failed", {
+                ...(job?.id ? { jobId: job.id } : {}),
+                ...safeErrorDetails(error),
+            });
         });
-        worker.on("error", () => {
-            console.error("Monitor check worker encountered an error");
+        worker.on("error", (error) => {
+            console.error("Monitor check worker encountered an error", safeErrorDetails(error));
         });
         await worker.waitUntilReady();
         stopOutboxProcessor = startNotificationOutboxProcessor();
@@ -330,7 +335,8 @@ export async function startMonitorCheckWorkerProcess() {
                 });
             },
         };
-    } catch {
+    } catch (error) {
+        console.error("Monitor worker initialization failed", safeErrorDetails(error));
         if (stopOutboxProcessor) await stopOutboxProcessor(0).catch(() => false);
         setSocketEventPublisher(null);
         if (worker) await worker.close(true).catch(() => undefined);
@@ -362,8 +368,8 @@ if (isDirectEntrypoint()) {
             process.once("SIGTERM", shutdown);
             process.once("SIGINT", shutdown);
         })
-        .catch(() => {
-            console.error("Monitor worker failed to start");
+        .catch((error: unknown) => {
+            console.error("Monitor worker failed to start", safeErrorDetails(error));
             process.exitCode = 1;
         });
 }

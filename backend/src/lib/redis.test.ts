@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
     closeRedisClient,
+    createRedisConnection,
     createQueueProducerConnection,
     validateRedisUrl,
 } from "./redis.js";
@@ -63,5 +64,22 @@ describe("queue producer Redis connection", () => {
         expect(connection.options.maxRetriesPerRequest).toBeNull();
         expect(connection.status).toBe("wait");
         connection.disconnect();
+    });
+
+    it("logs safe error codes without exposing connection details", () => {
+        const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        const connection = createRedisConnection("redis://127.0.0.1:6379/15");
+        connection.emit("error", Object.assign(
+            new Error("redis://user:secret@internal.example:6379"),
+            { code: "ECONNREFUSED" },
+        ));
+
+        expect(errorLog).toHaveBeenCalledExactlyOnceWith("Redis connection error", {
+            errorName: "Error",
+            errorCodes: ["ECONNREFUSED"],
+        });
+        expect(JSON.stringify(errorLog.mock.calls)).not.toContain("secret");
+        connection.disconnect();
+        errorLog.mockRestore();
     });
 });

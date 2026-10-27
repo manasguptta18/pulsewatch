@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createUserSchema, loginSchema } from "./user.schema.js";
+import { changePasswordSchema, createUserSchema, loginSchema } from "./user.schema.js";
 
 describe("user request schemas", () => {
     it("rejects registration passwords exceeding bcrypt's 72-byte input", () => {
@@ -25,6 +25,24 @@ describe("user request schemas", () => {
         expect(loginSchema.validate({
             email: "user@example.com",
             password: "a".repeat(73),
+        }).error).toBeUndefined();
+    });
+
+    it("requires matching confirmation and enforces the bcrypt byte limit on new passwords", () => {
+        expect(changePasswordSchema.validate({
+            currentPassword: "old-password",
+            newPassword: "new-password",
+            confirmPassword: "different",
+        }).error).toBeDefined();
+        expect(changePasswordSchema.validate({
+            currentPassword: "old-password",
+            newPassword: "😀".repeat(19),
+            confirmPassword: "😀".repeat(19),
+        }).error).toBeDefined();
+        expect(changePasswordSchema.validate({
+            currentPassword: "old-password",
+            newPassword: "new-password",
+            confirmPassword: "new-password",
         }).error).toBeUndefined();
     });
 });
